@@ -1,3 +1,4 @@
+project(NESEmuGUI)
 
 include(../../cmake/CPM.cmake)
 CPMAddPackage(
@@ -6,14 +7,11 @@ CPMAddPackage(
     VERSION 2.32.10
 )
 
-file(GLOB headers CONFIGURE_DEPENDS include/*.hpp)
-file(GLOB sources CONFIGURE_DEPENDS src/*.cpp)
-
 add_executable(NESEmuGUI)
 
 target_sources(NESEmuGUI
     PRIVATE
-        ${sources}
+        src/main.cpp
 )
 
 target_link_libraries(NESEmuGUI

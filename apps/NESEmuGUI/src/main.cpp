@@ -12,11 +12,11 @@ int main() {
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window* window = SDL_CreateWindow(
-            "SDL2Test",
+            "NESEmuGUI",
             SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED,
-            640,
-            480,
+            256,
+            240,
             0
     );
 
@@ -37,6 +37,7 @@ int main() {
         SDL_Delay(0);
     }
 
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
