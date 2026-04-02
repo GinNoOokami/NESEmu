@@ -4,10 +4,7 @@
 #include "NESEmuCore/cpu_6502.hpp"
 
 int main() {
-    auto state = CPUState_6502 {
-    0x100, 0, 0, 1, 0, 0
-    };
-    const CPU_6502 cpu(state);
+    const CPU_6502 cpu;
 
     SDL_Init(SDL_INIT_VIDEO);
 
