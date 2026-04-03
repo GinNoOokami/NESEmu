@@ -3,6 +3,7 @@
 
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <fstream>
 
 #include "NESEmuCore/cpu_6502.hpp"
 
@@ -41,77 +42,21 @@ namespace NESEmu {
         CPUTestState initial_state {};
         CPUTestState final_state {};
 
-        static CpuStepTest from_json() {
-          using namespace nlohmann::literals;
-                  auto json = R"(
-{
-  "name": "e8 9f f9",
-  "initial": {
-    "pc": 35594,
-    "s": 199,
-    "a": 205,
-    "x": 144,
-    "y": 179,
-    "p": 162,
-    "ram": [
-      [
-        35594,
-        232
-      ],
-      [
-        35595,
-        159
-      ],
-      [
-        35596,
-        249
-      ]
-    ]
-  },
-  "final": {
-    "pc": 35595,
-    "s": 199,
-    "a": 205,
-    "x": 145,
-    "y": 179,
-    "p": 160,
-    "ram": [
-      [
-        35594,
-        232
-      ],
-      [
-        35595,
-        159
-      ],
-      [
-        35596,
-        249
-      ]
-    ]
-  },
-  "cycles": [
-    [
-      35594,
-      232,
-      "read"
-    ],
-    [
-      35595,
-      159,
-      "read"
-    ]
-  ]
-}
-          )"_json;
+        static CpuStepTest from_json(uint8 opcode) {
+            std::ostringstream oss;
+            oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint32>(opcode);
 
-          CpuStepTest cpu_step_test_state {
-            json["name"],
-            json.at("initial").get<CPUTestState>(),
-            json.at("final").get<CPUTestState>()
-          };
+            auto path = std::string(TEST_DATA_DIR) + "/" + oss.str() + ".json";
+            std::ifstream f(path);
+            json data = json::parse(f)[0];
 
-          return cpu_step_test_state;
+            CpuStepTest cpu_step_test_state {
+                data["name"],
+                data.at("initial").get<CPUTestState>(),
+                data.at("final").get<CPUTestState>()
+            };
+
+            return cpu_step_test_state;
         }
     };
 }

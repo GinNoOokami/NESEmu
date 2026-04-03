@@ -19,7 +19,7 @@ TEST_CASE("CPU Init State") {
 }
 
 TEST_CASE("CPU Step Tests") {
-    auto test = CpuStepTest::from_json();
+    auto test = CpuStepTest::from_json(0xE8);
 
     SUBCASE(test.name) {
         CPU_6502 cpu;

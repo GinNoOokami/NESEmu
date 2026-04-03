@@ -28,6 +28,30 @@ target_link_libraries(NESEmuCoreTests
         nlohmann_json::nlohmann_json
 )
 
+# Handle JSON step test files
+set(TEST_ARCHIVE ${CMAKE_CURRENT_SOURCE_DIR}/data/nes6502.zip)
+set(TEST_OUTPUT_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
+set(TEST_STAMP ${TEST_OUTPUT_DATA_DIR}/.extracted.stamp)
+
+add_custom_command(
+    OUTPUT ${TEST_STAMP}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${TEST_OUTPUT_DATA_DIR}
+    COMMAND ${CMAKE_COMMAND} -E tar xvf ${TEST_ARCHIVE}
+    COMMAND ${CMAKE_COMMAND} -E touch ${TEST_STAMP}
+    DEPENDS ${TEST_ARCHIVE}
+    WORKING_DIRECTORY ${TEST_OUTPUT_DATA_DIR}
+    VERBATIM
+)
+
+add_custom_target(extract_test_data DEPENDS ${TEST_STAMP})
+add_dependencies(NESEmuCoreTests extract_test_data)
+
+target_compile_definitions(NESEmuCoreTests
+    PRIVATE
+        TEST_DATA_DIR="${TEST_OUTPUT_DATA_DIR}/nes6502/v1"
+)
+
+# Handle testing setup
 enable_testing()
 
 include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
