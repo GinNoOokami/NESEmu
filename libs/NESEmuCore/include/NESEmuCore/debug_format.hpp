@@ -38,7 +38,7 @@ namespace NESEmu {
             << " A: "  << to_register(state.a)
             << " X: "  << to_register(state.x)
             << " Y: "  << to_register(state.y)
-            << " P: "  << format_flags(state.p);
+            << " P: [" << format_flags(state.p) << "]";
         return oss.str();
     }
 

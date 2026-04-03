@@ -3,7 +3,6 @@
 
 #include "cpu_step_tests.hpp"
 #include "NESEmuCore/cpu_6502.hpp"
-#include "NESEmuCore/debug_format.hpp"
 
 using namespace NESEmu;
 
@@ -19,18 +18,24 @@ TEST_CASE("CPU Init State") {
 }
 
 TEST_CASE("CPU Step Tests") {
-    auto test = CpuStepTest::from_json(0xE8);
+    std::vector<CpuStepTest> tests(1000);
+    CpuStepTest::from_json(0xE8, tests);
 
-    SUBCASE(test.name) {
-        CPU_6502 cpu;
+    for (const auto& test : tests) {
+        SUBCASE("#" + test.key + " e8(INX) (implicit): " + test.name) {
+            CPU_6502 cpu;
 
-        CHECK_EQ(test.final_state.cpu, cpu.state());
+            // Execute instruction
+            //cpu.execute();
 
-        for (auto [ address, value ] : test.final_state.memory) {
-            auto expectedAddressValue = to_register(address) + "=" + doctest::toString(value);
-            auto actualAddressValue = to_register(address) + "=" + doctest::toString(cpu.readMemory(address));
+            CPUTestState current_state;
+            current_state.cpu = cpu.state();
 
-            CHECK_EQ(expectedAddressValue, actualAddressValue);
+            for (auto [ address, value ] : test.final_state.memory) {
+                current_state.memory.emplace_back(address, cpu.readMemory(address));
+            }
+
+            CHECK_EQ(test.final_state, current_state);
         }
     }
 }
