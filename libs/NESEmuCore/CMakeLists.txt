@@ -13,5 +13,6 @@ target_sources(NESEmuCore
         FILES
             include/NESEmuCore/bus.hpp
             include/NESEmuCore/cpu_6502.hpp
+            include/NESEmuCore/debug_format.hpp
             include/NESEmuCore/emu_types.hpp
 )

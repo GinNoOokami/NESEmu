@@ -1,8 +1,12 @@
 #ifndef NESEMU_EMU_TYPES_HPP
 #define NESEMU_EMU_TYPES_HPP
 
-typedef unsigned char t_uint8;
-typedef unsigned short t_uint16;
-typedef unsigned int t_uint32;
+#include <cstdint>
+
+namespace NESEmu {
+    using uint8 = std::uint8_t;
+    using uint16 = std::uint16_t;
+    using uint32 = std::uint32_t;
+}
 
 #endif //NESEMU_EMU_TYPES_HPP

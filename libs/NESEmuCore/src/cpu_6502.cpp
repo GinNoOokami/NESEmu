@@ -1,5 +1,7 @@
 #include "NESEmuCore/cpu_6502.hpp"
 
+using namespace NESEmu;
+
 CPU_6502::CPU_6502() {
     m_OpcodeHandlers[0x00] = &CPU_6502::opInvalid<0x00>;
     m_OpcodeHandlers[0x01] = &CPU_6502::opInvalid<0x01>;
@@ -27,16 +29,16 @@ void CPU_6502::reset() {
 }
 
 void CPU_6502::execute() {
-    const t_uint8 opcode = readMemory(m_State.pc++);
+    const uint8 opcode = readMemory(m_State.pc++);
 
     (this->*m_OpcodeHandlers[opcode])();
 }
 
-t_uint8 CPU_6502::readMemory(const t_uint16 address) const {
+uint8 CPU_6502::readMemory(const uint16 address) const {
     return m_Memory[address];
 }
 
-void CPU_6502::writeMemory(t_uint16 address, const t_uint8 value) {
+void CPU_6502::writeMemory(uint16 address, const uint8 value) {
     m_Memory[address] = value;
 }
 

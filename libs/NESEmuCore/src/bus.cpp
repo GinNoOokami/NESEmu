@@ -1,11 +1,13 @@
 #include "NESEmuCore/bus.hpp"
 
+using namespace NESEmu;
+
 Bus::Bus() = default;
 Bus::~Bus() = default;
 
-void Bus::write(t_uint16 address, t_uint8 data) {
+void Bus::write(uint16 address, uint8 data) {
 }
 
-t_uint8 Bus::read(t_uint16 address) {
+uint8 Bus::read(uint16 address) {
     return 0x00;
 }

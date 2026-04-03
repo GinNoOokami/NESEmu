@@ -25,13 +25,15 @@ CPU Memory Map
 |• $FFFE        $0002   IRQ vector
 */
 
-class Bus {
-public:
-    Bus();
-    ~Bus();
+namespace NESEmu {
+    class Bus {
+    public:
+        Bus();
+        ~Bus();
 
-    void    write(t_uint16 address, t_uint8 data);
-    t_uint8 read(t_uint16 address);
-};
+        void    write(uint16 address, uint8 data);
+        uint8 read(uint16 address);
+    };
+}
 
 #endif //NESEMU_BUS_HPP
