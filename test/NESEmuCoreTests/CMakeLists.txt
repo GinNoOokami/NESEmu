@@ -19,6 +19,7 @@ target_sources(NESEmuCoreTests
             include
         FILES
             include/cpu_step_tests.hpp
+            include/opcode_descriptors.hpp
 )
 
 target_link_libraries(NESEmuCoreTests

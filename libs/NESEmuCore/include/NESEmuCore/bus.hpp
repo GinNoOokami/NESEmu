@@ -32,7 +32,7 @@ namespace NESEmu {
         ~Bus();
 
         void    write(uint16 address, uint8 data);
-        uint8 read(uint16 address);
+        uint8   read(uint16 address);
     };
 }
 

@@ -106,6 +106,22 @@ namespace NESEmu {
                 tests.push_back(cpu_step_test_state);
             }
         }
+
+        void initializeCpu(CPU_6502& cpu) const {
+            cpu.state(initial_state.cpu);
+            for (auto [ address, value ] : initial_state.memory) {
+                cpu.writeMemory(address, value);
+            }
+        }
+
+        [[nodiscard]] CPUTestState currentState(const CPU_6502& cpu) const {
+            CPUTestState current;
+            current.cpu = cpu.state();
+            for (auto [ address, value ] : final_state.memory) {
+                current.memory.emplace_back(address, cpu.readMemory(address));
+            }
+            return current;
+        }
     };
 }
 

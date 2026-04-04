@@ -1,10 +1,17 @@
-#include <doctest.h>
-#include <utility>
-
 #include "cpu_step_tests.hpp"
+#include "opcode_descriptors.hpp"
+
 #include "NESEmuCore/cpu_6502.hpp"
 
+#include <doctest.h>
+
 using namespace NESEmu;
+
+std::string createTestName(const std::string& instructionDesc, const CpuStepTest& test) {
+    std::ostringstream oss;
+    oss << "Test #" << test.key << " " << instructionDesc << ": " << test.name;
+    return oss.str();
+}
 
 TEST_CASE("CPU Init State") {
     CPU_6502 cpu;
@@ -18,24 +25,23 @@ TEST_CASE("CPU Init State") {
 }
 
 TEST_CASE("CPU Step Tests") {
-    std::vector<CpuStepTest> tests(1000);
-    CpuStepTest::from_json(0xE8, tests);
+    std::vector<CpuStepTest> tests(10000);
 
-    for (const auto& test : tests) {
-        SUBCASE("#" + test.key + " e8(INX) (implicit): " + test.name) {
+    for (const auto& [opcode, instructionDesc] : opcodeDescriptionList) {
+        MESSAGE("Executing opcode tests: ", instructionDesc);
+        CpuStepTest::from_json(opcode, tests);
+
+        for (const auto& test : tests) {
+            INFO("Executing test: ", createTestName(instructionDesc, test));
+
             CPU_6502 cpu;
+            test.initializeCpu(cpu);
 
             // Execute instruction
-            //cpu.execute();
+            cpu.execute();
 
-            CPUTestState current_state;
-            current_state.cpu = cpu.state();
-
-            for (auto [ address, value ] : test.final_state.memory) {
-                current_state.memory.emplace_back(address, cpu.readMemory(address));
-            }
-
-            CHECK_EQ(test.final_state, current_state);
+            auto actual = test.currentState(cpu);
+            CHECK_EQ(test.final_state, actual);
         }
     }
 }
