@@ -5,8 +5,7 @@ include(../../cmake/CPM.cmake)
 CPMAddPackage("gh:doctest/doctest@2.5.0")
 CPMAddPackage("gh:nlohmann/json@3.12.0")
 
-add_executable(NESEmuCoreTests
-    include/cpu_step_tests.hpp)
+add_executable(NESEmuCoreTests)
 
 target_sources(NESEmuCoreTests
     PRIVATE
@@ -29,14 +28,17 @@ target_link_libraries(NESEmuCoreTests
         nlohmann_json::nlohmann_json
 )
 
+#target_compile_options(NESEmuCoreTests PRIVATE -H -ftime-report)
+
 # Handle JSON step test files
 set(TEST_ARCHIVE ${CMAKE_CURRENT_SOURCE_DIR}/data/nes6502.zip)
 set(TEST_OUTPUT_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
 set(TEST_STAMP ${TEST_OUTPUT_DATA_DIR}/.extracted.stamp)
 
+file(MAKE_DIRECTORY ${TEST_OUTPUT_DATA_DIR})
+
 add_custom_command(
     OUTPUT ${TEST_STAMP}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${TEST_OUTPUT_DATA_DIR}
     COMMAND ${CMAKE_COMMAND} -E tar xvf ${TEST_ARCHIVE}
     COMMAND ${CMAKE_COMMAND} -E touch ${TEST_STAMP}
     DEPENDS ${TEST_ARCHIVE}

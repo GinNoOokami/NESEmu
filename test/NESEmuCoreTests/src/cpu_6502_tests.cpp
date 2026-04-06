@@ -28,20 +28,23 @@ TEST_CASE("CPU Step Tests") {
     std::vector<CpuStepTest> tests(10000);
 
     for (const auto& [opcode, instructionDesc] : opcodeDescriptionList) {
-        MESSAGE("Executing opcode tests: ", instructionDesc);
-        CpuStepTest::from_json(opcode, tests);
+        SUBCASE(instructionDesc) {
+            CpuStepTest::from_json(opcode, tests);
 
-        for (const auto& test : tests) {
-            INFO("Executing test: ", createTestName(instructionDesc, test));
+            for (const auto& test : tests) {
+                INFO("Executing test: ", createTestName(instructionDesc, test));
 
-            CPU_6502 cpu;
-            test.initializeCpu(cpu);
+                // Setup initial state
+                CPU_6502 cpu;
+                test.initializeCpu(cpu);
 
-            // Execute instruction
-            cpu.execute();
+                // Execute instruction
+                cpu.execute();
 
-            auto actual = test.currentState(cpu);
-            CHECK_EQ(test.final_state, actual);
+                // Test final state
+                auto actual = test.currentState(cpu);
+                CHECK_EQ(test.final_state, actual);
+            }
         }
     }
 }

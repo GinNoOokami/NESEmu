@@ -3,6 +3,8 @@
 
 #include "NESEmuCore/cpu_6502.hpp"
 
+using namespace NESEmu;
+
 int main() {
     const CPU_6502 cpu;
 
