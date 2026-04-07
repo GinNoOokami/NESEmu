@@ -4,6 +4,8 @@
 #include "emu_types.hpp"
 
 namespace NESEmu {
+    class Bus;
+
     class CPU_6502 {
         static constexpr uint16 VEC_NMI   = 0xFFFA;
         static constexpr uint16 VEC_RESET = 0xFFFC;
@@ -30,7 +32,7 @@ namespace NESEmu {
             uint8     p;
         };
 
-        CPU_6502();
+        CPU_6502(Bus* bus);
         ~CPU_6502();
 
         void startup();
@@ -42,6 +44,8 @@ namespace NESEmu {
 
         [[nodiscard]]   uint8           readMemory(uint16 address) const;
                         void            writeMemory(uint16 address, uint8 value);
+
+        [[nodiscard]]   uint32          cycles() const { return m_Cycles; };
 
     private:
         typedef void (CPU_6502::*OpcodeHandler)();
@@ -58,8 +62,9 @@ namespace NESEmu {
         CPUState_6502   m_State {};
         OpcodeHandler   m_OpcodeHandlers[256] { nullptr };
 
-        // For now, just embed memory inside the CPU to get something working
-        uint8           m_Memory[0x10000] {};
+        uint32          m_Cycles { 0 };
+
+        Bus*            m_Bus;
     };
 
     inline bool operator==(const CPU_6502::CPUState_6502& lhs, const CPU_6502::CPUState_6502& rhs) {

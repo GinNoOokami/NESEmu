@@ -1,12 +1,16 @@
 #define SDL_MAIN_HANDLED true
 #include <SDL.h>
 
+#include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/cpu_6502.hpp"
+#include "NESEmuCore/memory.hpp"
 
 using namespace NESEmu;
 
 int main() {
-    const CPU_6502 cpu;
+    InternalRam memory;
+    Bus bus(&memory);
+    const CPU_6502 cpu(&bus);
 
     SDL_Init(SDL_INIT_VIDEO);
 

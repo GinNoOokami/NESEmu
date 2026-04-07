@@ -12,7 +12,9 @@ target_sources(NESEmuCore
             include
         FILES
             include/NESEmuCore/bus.hpp
+            include/NESEmuCore/bus_mappable.hpp
             include/NESEmuCore/cpu_6502.hpp
             include/NESEmuCore/debug_format.hpp
             include/NESEmuCore/emu_types.hpp
+            include/NESEmuCore/memory.hpp
 )

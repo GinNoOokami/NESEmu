@@ -26,13 +26,26 @@ CPU Memory Map
 */
 
 namespace NESEmu {
+#ifndef RUN_TESTS
+    class InternalRam;
+    using Memory = InternalRam;
+#else
+    class FlatMemory;
+    using Memory = FlatMemory;
+#endif
+
     class Bus {
     public:
-        Bus();
-        ~Bus();
+        Bus(Memory* memory) : m_memory(memory) {}
+        ~Bus() = default;
 
-        void    write(uint16 address, uint8 data);
         uint8   read(uint16 address);
+        void    write(uint16 address, uint8 data);
+
+    private:
+        Memory* m_memory;
+
+        uint8 m_openBusData = 0;
     };
 }
 

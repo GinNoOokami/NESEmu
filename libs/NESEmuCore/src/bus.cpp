@@ -1,13 +1,22 @@
 #include "NESEmuCore/bus.hpp"
 
+#include "NESEmuCore/memory.hpp"
+
 using namespace NESEmu;
 
-Bus::Bus() = default;
-Bus::~Bus() = default;
+uint8 Bus::read(const uint16 address) {
+    uint8 data = m_openBusData;
 
-void Bus::write(uint16 address, uint8 data) {
+    if (m_memory->canRead(address)) {
+        data = m_openBusData = m_memory->read(address);
+    }
+
+    return data;
 }
 
-uint8 Bus::read(uint16 address) {
-    return 0x00;
+void Bus::write(const uint16 address, const uint8 data) {
+    if (m_memory->canWrite(address)) {
+        m_memory->write(address, data);
+        m_openBusData = data;
+    }
 }

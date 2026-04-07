@@ -1,8 +1,11 @@
 #include "NESEmuCore/cpu_6502.hpp"
 
+#include "NESEmuCore/bus.hpp"
+
 using namespace NESEmu;
 
-CPU_6502::CPU_6502() {
+CPU_6502::CPU_6502(Bus* bus) :
+    m_Bus(bus) {
     m_OpcodeHandlers[0x00] = &CPU_6502::opInvalid<0x00>;
     m_OpcodeHandlers[0x01] = &CPU_6502::opInvalid<0x01>;
     m_OpcodeHandlers[0x02] = &CPU_6502::opInvalid<0x02>;
@@ -304,11 +307,11 @@ void CPU_6502::execute() {
 }
 
 uint8 CPU_6502::readMemory(const uint16 address) const {
-    return m_Memory[address];
+    return m_Bus->read(address);
 }
 
 void CPU_6502::writeMemory(uint16 address, const uint8 value) {
-    m_Memory[address] = value;
+    m_Bus->write(address, value);
 }
 
 template<unsigned OP>
@@ -317,6 +320,7 @@ void CPU_6502::opInvalid() {
 }
 
 void CPU_6502::opNOP() {
+    m_Cycles += 2;
 }
 
 void CPU_6502::opINX() {
@@ -324,6 +328,8 @@ void CPU_6502::opINX() {
 
     setRegister(N, m_State.x & 0x80);
     setRegister(Z, !m_State.x);
+
+    m_Cycles += 2;
 }
 
 void CPU_6502::opINY() {
@@ -331,4 +337,6 @@ void CPU_6502::opINY() {
 
     setRegister(N, m_State.y & 0x80);
     setRegister(Z, !m_State.y);
+
+    m_Cycles += 2;
 }

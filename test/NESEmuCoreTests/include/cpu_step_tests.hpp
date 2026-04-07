@@ -84,6 +84,7 @@ namespace NESEmu {
         std::string name;
         CPUTestState initial_state {};
         CPUTestState final_state {};
+        std::vector<std::tuple<uint16, uint8, std::string>> cycles {};
 
         static void from_json(uint8 opcode, std::vector<CpuStepTest>& tests) {
             std::ostringstream oss;
@@ -100,7 +101,8 @@ namespace NESEmu {
                     key,
                     value["name"],
                     value.at("initial").get<CPUTestState>(),
-                    value.at("final").get<CPUTestState>()
+                    value.at("final").get<CPUTestState>(),
+                    value.at("cycles")
                 };
 
                 tests.push_back(cpu_step_test_state);
