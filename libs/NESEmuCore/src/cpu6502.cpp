@@ -288,7 +288,7 @@ void Cpu6502::startup()
 {
     // https://www.nesdev.org/wiki/Init_code
 
-    m_state.pc = readMemory(VEC_RESET);
+    m_state.pc = readMemory(kVecReset);
     m_state.sp = 0xFD;
     m_state.a  = 0;
     m_state.x  = 0;
@@ -299,7 +299,7 @@ void Cpu6502::startup()
 
 void Cpu6502::reset()
 {
-    m_state.pc = readMemory(VEC_RESET);
+    m_state.pc = readMemory(kVecReset);
     m_state.sp -= 3;
 
     // Other registers remain unchanged on reset
@@ -339,15 +339,16 @@ void Cpu6502::opNOP()
 
 void Cpu6502::opADC(const uint8 value)
 {
-    const uint8 carry = getRegister(C);
-    const uint8 total = m_state.a + value + carry;
+    const uint8  carry = getRegister(C);
+    const uint16 total = m_state.a + value + carry;
+    const auto   data  = static_cast<uint8>(total);
 
-    setRegister(C, m_state.a + value + carry > 0xFF);
-    setRegister(Z, !total);
-    setRegister(V, (total ^ m_state.a) & (total ^ value) & 0x80);
-    setRegister(N, total & 0x80);
+    setRegister(C, total > 0xFF);
+    setRegister(Z, !data);
+    setRegister(V, (data ^ m_state.a) & (data ^ value) & 0x80);
+    setRegister(N, data & 0x80);
 
-    m_state.a = total;
+    m_state.a = data;
 }
 
 void Cpu6502::opADC_imm()
@@ -359,16 +360,16 @@ void Cpu6502::opADC_imm()
 
 void Cpu6502::opADC_zp()
 {
-    const uint16 addr  = readMemory(m_state.pc++);
-    const uint8  value = readMemory(addr);
+    const uint8 zp    = readMemory(m_state.pc++);
+    const uint8 value = readMemory(zp);
 
     opADC(value);
 }
 
 void Cpu6502::opADC_zp_X()
 {
-    const uint16 addr  = readMemory(m_state.pc++) + m_state.x & 0xFF;
-    const uint8  value = readMemory(addr);
+    const uint8 zp    = readMemory(m_state.pc++) + m_state.x;
+    const uint8 value = readMemory(zp);
 
     // Index mode takes an extra internal cycle
     m_cycles++;
@@ -378,18 +379,21 @@ void Cpu6502::opADC_zp_X()
 
 void Cpu6502::opADC_abs()
 {
-    const uint8 lo    = readMemory(m_state.pc++);
-    const uint8 hi    = readMemory(m_state.pc++);
-    const uint8 value = readMemory(hi << 8 | lo);
+    const uint8  lo    = readMemory(m_state.pc++);
+    const uint8  hi    = readMemory(m_state.pc++);
+    const uint16 addr  = hi << 8 | lo;
+    const uint8  value = readMemory(addr);
 
     opADC(value);
 }
 
 void Cpu6502::opADC_abs_X()
 {
-    const uint8 lo    = readMemory(m_state.pc++);
-    const uint8 hi    = readMemory(m_state.pc++);
-    const uint8 value = readMemory((hi << 8 | lo) + m_state.x);
+    const uint8  lo    = readMemory(m_state.pc++);
+    const uint8  hi    = readMemory(m_state.pc++);
+    const uint16 base  = hi << 8 | lo;
+    const uint16 addr  = base + m_state.x;
+    const uint8  value = readMemory(addr);
 
     if (lo + m_state.x > 0xFF) {
         // Crossing a page boundry takes an extra internal cycle
@@ -401,9 +405,11 @@ void Cpu6502::opADC_abs_X()
 
 void Cpu6502::opADC_abs_Y()
 {
-    const uint8 lo    = readMemory(m_state.pc++);
-    const uint8 hi    = readMemory(m_state.pc++);
-    const uint8 value = readMemory((hi << 8 | lo) + m_state.y);
+    const uint8  lo    = readMemory(m_state.pc++);
+    const uint8  hi    = readMemory(m_state.pc++);
+    const uint16 base  = hi << 8 | lo;
+    const uint16 addr  = base + m_state.y;
+    const uint8  value = readMemory(addr);
 
     if (lo + m_state.y > 0xFF) {
         // Crossing a page boundry takes an extra internal cycle
@@ -415,10 +421,11 @@ void Cpu6502::opADC_abs_Y()
 
 void Cpu6502::opADC_ind_X()
 {
-    uint8       addr  = readMemory(m_state.pc++) + m_state.x;
-    const uint8 lo    = readMemory(addr++);
-    const uint8 hi    = readMemory(addr);
-    const uint8 value = readMemory(hi << 8 | lo);
+    uint8        zp    = readMemory(m_state.pc++) + m_state.x;
+    const uint8  lo    = readMemory(zp++);
+    const uint8  hi    = readMemory(zp);
+    const uint16 addr  = hi << 8 | lo;
+    const uint8  value = readMemory(addr);
 
     // Index mode takes an extra internal cycle
     m_cycles++;
@@ -428,10 +435,12 @@ void Cpu6502::opADC_ind_X()
 
 void Cpu6502::opADC_ind_Y()
 {
-    uint8       addr  = readMemory(m_state.pc++);
-    const uint8 lo    = readMemory(addr++);
-    const uint8 hi    = readMemory(addr);
-    const uint8 value = readMemory((hi << 8 | lo) + m_state.y);
+    uint8        zp    = readMemory(m_state.pc++);
+    const uint8  lo    = readMemory(zp++);
+    const uint8  hi    = readMemory(zp);
+    const uint16 base  = hi << 8 | lo;
+    const uint16 addr  = base + m_state.y;
+    const uint8  value = readMemory(addr);
 
     if (lo + m_state.y > 0xFF) {
         // Crossing a page boundry takes an extra internal cycle

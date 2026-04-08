@@ -7,9 +7,9 @@ namespace NESEmu {
 class Bus;
 
 class Cpu6502 {
-    static constexpr uint16 VEC_NMI   = 0xFFFA;
-    static constexpr uint16 VEC_RESET = 0xFFFC;
-    static constexpr uint16 VEC_IRQ   = 0xFFFE;
+    static constexpr uint16 kVecNmi   = 0xFFFA;
+    static constexpr uint16 kVecReset = 0xFFFC;
+    static constexpr uint16 kVecIrq   = 0xFFFE;
 
 public:
     enum RegisterFlag {
@@ -48,16 +48,16 @@ public:
 private:
     typedef void (Cpu6502::*OpcodeHandler)();
 
-    [[nodiscard]] uint8 readMemory(uint16 address);
-    void                writeMemory(uint16 address, uint8 value);
+    [[nodiscard]] inline uint8 readMemory(uint16 address);
+    inline void                writeMemory(uint16 address, uint8 value);
 
     [[nodiscard]] bool getRegister(const RegisterFlag flag) const { return m_state.p & flag; }
-    void               setRegister(const RegisterFlag flag, bool value) { value ? m_state.p |= flag : m_state.p &= ~flag; }
+    void               setRegister(const RegisterFlag flag, bool value) { m_state.p = (m_state.p & ~flag) | (-static_cast<uint8>(value) & flag); }
 
     // Opcodes
     template <unsigned OP> void opInvalid();
     void                        opNOP();
-    void                        opADC(uint8 value);
+    inline void                 opADC(uint8 value);
     void                        opADC_imm();
     void                        opADC_zp();
     void                        opADC_zp_X();
