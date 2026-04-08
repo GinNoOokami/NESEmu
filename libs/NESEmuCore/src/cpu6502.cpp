@@ -7,7 +7,8 @@
 using namespace NESEmu;
 
 Cpu6502::Cpu6502(Bus& bus)
-    : m_bus(bus) {
+    : m_bus(bus)
+{
     m_opcodeHandlers[0x00] = &Cpu6502::opInvalid<0x00>;
     m_opcodeHandlers[0x01] = &Cpu6502::opInvalid<0x01>;
     m_opcodeHandlers[0x02] = &Cpu6502::opInvalid<0x02>;
@@ -283,53 +284,61 @@ Cpu6502::Cpu6502(Bus& bus)
 
 Cpu6502::~Cpu6502() = default;
 
-void Cpu6502::startup() {
+void Cpu6502::startup()
+{
     // https://www.nesdev.org/wiki/Init_code
 
     m_state.pc = readMemory(VEC_RESET);
     m_state.sp = 0xFD;
-    m_state.a = 0;
-    m_state.x = 0;
-    m_state.y = 0;
-    m_state.p = 0;
+    m_state.a  = 0;
+    m_state.x  = 0;
+    m_state.y  = 0;
+    m_state.p  = 0;
     setRegister(U, true);
 }
 
-void Cpu6502::reset() {
+void Cpu6502::reset()
+{
     m_state.pc = readMemory(VEC_RESET);
     m_state.sp -= 3;
 
     // Other registers remain unchanged on reset
 }
 
-void Cpu6502::execute() {
+void Cpu6502::execute()
+{
     const uint8 opcode = readMemory(m_state.pc++);
 
     (this->*m_opcodeHandlers[opcode])();
 }
 
-uint8 Cpu6502::readMemory(const uint16 address) {
+uint8 Cpu6502::readMemory(const uint16 address)
+{
     m_cycles++;
     return m_bus.read(address);
 }
 
-void Cpu6502::writeMemory(uint16 address, const uint8 value) {
+void Cpu6502::writeMemory(uint16 address, const uint8 value)
+{
     m_cycles++;
     m_bus.write(address, value);
 }
 
-template<unsigned OP>
-void Cpu6502::opInvalid() {
+template <unsigned OP>
+void Cpu6502::opInvalid()
+{
     // TODO: Log invalid opcode (and halt execution?)
     throw std::runtime_error("Invalid opcode");
 }
 
-void Cpu6502::opNOP() {
+void Cpu6502::opNOP()
+{
     // NOP has a dummy read which takes an extra cycle
     m_cycles++;
 }
 
-void Cpu6502::opADC(uint8 value) {
+void Cpu6502::opADC(const uint8 value)
+{
     const uint8 carry = getRegister(C);
     const uint8 total = m_state.a + value + carry;
 
@@ -341,22 +350,25 @@ void Cpu6502::opADC(uint8 value) {
     m_state.a = total;
 }
 
-void Cpu6502::opADC_imm() {
+void Cpu6502::opADC_imm()
+{
     const uint8 value = readMemory(m_state.pc++);
 
     opADC(value);
 }
 
-void Cpu6502::opADC_zp() {
-    const uint16 addr = readMemory(m_state.pc++);
-    const uint8 value = readMemory(addr);
+void Cpu6502::opADC_zp()
+{
+    const uint16 addr  = readMemory(m_state.pc++);
+    const uint8  value = readMemory(addr);
 
     opADC(value);
 }
 
-void Cpu6502::opADC_zp_X() {
-    const uint16 addr = readMemory(m_state.pc++) + m_state.x & 0xFF;
-    const uint8 value = readMemory(addr);
+void Cpu6502::opADC_zp_X()
+{
+    const uint16 addr  = readMemory(m_state.pc++) + m_state.x & 0xFF;
+    const uint8  value = readMemory(addr);
 
     // Index mode takes an extra internal cycle
     m_cycles++;
@@ -364,18 +376,20 @@ void Cpu6502::opADC_zp_X() {
     opADC(value);
 }
 
-void Cpu6502::opADC_abs() {
-    const uint8 lo = readMemory(m_state.pc++);
-    const uint8 hi = readMemory(m_state.pc++);
+void Cpu6502::opADC_abs()
+{
+    const uint8 lo    = readMemory(m_state.pc++);
+    const uint8 hi    = readMemory(m_state.pc++);
     const uint8 value = readMemory(hi << 8 | lo);
 
     opADC(value);
 }
 
-void Cpu6502::opADC_abs_X() {
-    const uint8 lo = readMemory(m_state.pc++);
-    const uint8 hi = readMemory(m_state.pc++);
-    const uint8 value = readMemory((hi << 8 | lo) +  m_state.x);
+void Cpu6502::opADC_abs_X()
+{
+    const uint8 lo    = readMemory(m_state.pc++);
+    const uint8 hi    = readMemory(m_state.pc++);
+    const uint8 value = readMemory((hi << 8 | lo) + m_state.x);
 
     if (lo + m_state.x > 0xFF) {
         // Crossing a page boundry takes an extra internal cycle
@@ -385,35 +399,10 @@ void Cpu6502::opADC_abs_X() {
     opADC(value);
 }
 
-void Cpu6502::opADC_abs_Y() {
-    const uint8 lo = readMemory(m_state.pc++);
-    const uint8 hi = readMemory(m_state.pc++);
-    const uint8 value = readMemory((hi << 8 | lo) +  m_state.y);
-
-    if (lo + m_state.y > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
-        m_cycles++;
-    }
-
-    opADC(value);
-}
-
-void Cpu6502::opADC_ind_X() {
-    uint8 addr = readMemory(m_state.pc++) + m_state.x;
-    const uint8 lo = readMemory(addr++);
-    const uint8 hi = readMemory(addr);
-    const uint8 value = readMemory(hi << 8 | lo);
-
-    // Index mode takes an extra internal cycle
-    m_cycles++;
-
-    opADC(value);
-}
-
-void Cpu6502::opADC_ind_Y() {
-    uint8 addr = readMemory(m_state.pc++);
-    const uint8 lo = readMemory(addr++);
-    const uint8 hi = readMemory(addr);
+void Cpu6502::opADC_abs_Y()
+{
+    const uint8 lo    = readMemory(m_state.pc++);
+    const uint8 hi    = readMemory(m_state.pc++);
     const uint8 value = readMemory((hi << 8 | lo) + m_state.y);
 
     if (lo + m_state.y > 0xFF) {
@@ -424,7 +413,36 @@ void Cpu6502::opADC_ind_Y() {
     opADC(value);
 }
 
-void Cpu6502::opINX() {
+void Cpu6502::opADC_ind_X()
+{
+    uint8       addr  = readMemory(m_state.pc++) + m_state.x;
+    const uint8 lo    = readMemory(addr++);
+    const uint8 hi    = readMemory(addr);
+    const uint8 value = readMemory(hi << 8 | lo);
+
+    // Index mode takes an extra internal cycle
+    m_cycles++;
+
+    opADC(value);
+}
+
+void Cpu6502::opADC_ind_Y()
+{
+    uint8       addr  = readMemory(m_state.pc++);
+    const uint8 lo    = readMemory(addr++);
+    const uint8 hi    = readMemory(addr);
+    const uint8 value = readMemory((hi << 8 | lo) + m_state.y);
+
+    if (lo + m_state.y > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_cycles++;
+    }
+
+    opADC(value);
+}
+
+void Cpu6502::opINX()
+{
     m_state.x++;
 
     setRegister(N, m_state.x & 0x80);
@@ -434,7 +452,8 @@ void Cpu6502::opINX() {
     m_cycles++;
 }
 
-void Cpu6502::opINY() {
+void Cpu6502::opINY()
+{
     m_state.y++;
 
     setRegister(N, m_state.y & 0x80);

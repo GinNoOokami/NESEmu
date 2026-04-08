@@ -9,16 +9,18 @@
 
 using namespace NESEmu;
 
-std::string createTestName(const std::string& instructionDesc, const CpuStepTest& test) {
+std::string createTestName(const std::string& instructionDesc, const CpuStepTest& test)
+{
     std::ostringstream oss;
     oss << "Test #" << test.key << " " << instructionDesc << ": " << test.name;
     return oss.str();
 }
 
-TEST_CASE("CPU Init State") {
+TEST_CASE("CPU Init State")
+{
     FlatMemory memory;
-    Bus bus(&memory);
-    Cpu6502 cpu(bus);
+    Bus        bus(memory);
+    Cpu6502    cpu(bus);
     cpu.startup();
 
     CHECK_EQ(cpu.state().sp, 0xFD);
@@ -28,7 +30,8 @@ TEST_CASE("CPU Init State") {
     CHECK_EQ(cpu.state().y, 0);
 }
 
-TEST_CASE("CPU Step Tests") {
+TEST_CASE("CPU Step Tests")
+{
     std::vector<CpuStepTest> tests(10000);
 
     for (const auto& [opcode, instructionDesc] : opcodeDescriptionList) {
@@ -40,8 +43,8 @@ TEST_CASE("CPU Step Tests") {
 
                 // Setup initial state
                 FlatMemory memory;
-                Bus bus(&memory);
-                Cpu6502 cpu(bus);
+                Bus        bus(memory);
+                Cpu6502    cpu(bus);
                 test.initializeCpu(cpu, bus);
                 auto initialCycles = cpu.cycles();
 

@@ -1,0 +1,6 @@
+BasedOnStyle: WebKit
+Language: Cpp
+LineEnding: LF
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: AcrossEmptyLines
+AlignOperands: AlignAfterOperator

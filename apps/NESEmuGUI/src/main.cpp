@@ -7,29 +7,30 @@
 
 using namespace NESEmu;
 
-int main() {
-    InternalRam memory;
-    Bus bus(&memory);
-    const Cpu6502 cpu(&bus);
+int main()
+{
+    InternalRam   memory;
+    Bus           bus(memory);
+    const Cpu6502 cpu(bus);
 
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_Window* window = SDL_CreateWindow(
-            "NESEmuGUI",
-            SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED,
-            256,
-            240,
-            0
-    );
+        "NESEmuGUI",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        256,
+        240,
+        0
+        );
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
     SDL_Event e;
-    bool quit = false;
-    while (!quit){
-        while (SDL_PollEvent(&e)){
-            if (e.type == SDL_QUIT){
+    bool      quit = false;
+    while (!quit) {
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) {
                 quit = true;
             }
         }
