@@ -4,6 +4,7 @@
 #include "NESEmuCore/emu_types.hpp"
 
 #include <vector>
+#include <string>
 
 using namespace NESEmu;
 
@@ -20,13 +21,19 @@ using namespace NESEmu;
 // Absolute
 // Absolute,X
 // Absolute,Y
-// Indirect
-// Indexed Indirect
-// Indirect Indexed
+// Indirect,X
+// Indirect,Y
 
 inline std::vector<std::tuple<uint8, std::string>> opcodeDescriptionList = {
-    {0xc8, "$c8 INY (Implied)"},
-    {0xe8, "$e8 INX (Implied)"},
+    {0x61, "$61 ADC (indirect,X)"},
+    {0x69, "$69 ADC (immediate)"},
+    {0x6d, "$6d ADC (absolute)"},
+    {0x71, "$71 ADC (indirect,Y)"},
+    {0x75, "$75 ADC (zero page,x)"},
+    {0x79, "$79 ADC (absolute,Y)"},
+    {0x7d, "$7d ADC (absolute,x)"},
+    {0xc8, "$c8 INY (implied)"},
+    {0xe8, "$e8 INX (implied)"},
     {0xea, "$ea NOP"},
 };
 

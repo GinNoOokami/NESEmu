@@ -21,8 +21,6 @@ TEST_CASE("CPU Init State") {
     CPU_6502 cpu(&bus);
     cpu.startup();
 
-    auto _ = memory.read(0x00);
-
     CHECK_EQ(cpu.state().sp, 0xFD);
     CHECK(cpu.state().p);
     CHECK_EQ(cpu.state().a, 0);
@@ -37,21 +35,21 @@ TEST_CASE("CPU Step Tests") {
         SUBCASE(instructionDesc) {
             CpuStepTest::from_json(opcode, tests);
 
-            for (const auto& test : tests) {
-                INFO("Executing test: ", createTestName(instructionDesc, test));
+            for (auto& test : tests) {
+                INFO("Executing test: ", createTestName(instructionDesc, test), "\ninitial_state=", test.initial_state);
 
                 // Setup initial state
                 FlatMemory memory;
                 Bus bus(&memory);
                 CPU_6502 cpu(&bus);
-                test.initializeCpu(cpu);
+                test.initializeCpu(cpu, bus);
                 auto initialCycles = cpu.cycles();
 
                 // Execute instruction
                 cpu.execute();
 
                 // Test final state
-                auto actual = test.currentState(cpu);
+                auto actual = test.currentState(cpu, bus);
                 auto elapsedCycles = cpu.cycles() - initialCycles;
                 CHECK_EQ(test.final_state, actual);
                 CHECK_EQ(test.cycles.size(), elapsedCycles);

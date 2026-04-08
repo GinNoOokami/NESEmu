@@ -5,6 +5,7 @@
 #include <iostream>
 #include <fstream>
 
+#include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/cpu_6502.hpp"
 #include "NESEmuCore/debug_format.hpp"
 
@@ -109,18 +110,18 @@ namespace NESEmu {
             }
         }
 
-        void initializeCpu(CPU_6502& cpu) const {
+        void initializeCpu(CPU_6502& cpu, Bus& bus) const {
             cpu.state(initial_state.cpu);
             for (auto [ address, value ] : initial_state.memory) {
-                cpu.writeMemory(address, value);
+                bus.write(address, value);
             }
         }
 
-        [[nodiscard]] CPUTestState currentState(const CPU_6502& cpu) const {
+        [[nodiscard]] CPUTestState currentState(const CPU_6502& cpu, Bus& bus) {
             CPUTestState current;
             current.cpu = cpu.state();
             for (auto [ address, value ] : final_state.memory) {
-                current.memory.emplace_back(address, cpu.readMemory(address));
+                current.memory.emplace_back(address, bus.read(address));
             }
             return current;
         }

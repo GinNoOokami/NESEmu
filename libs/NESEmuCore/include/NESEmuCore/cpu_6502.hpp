@@ -42,13 +42,14 @@ namespace NESEmu {
         [[nodiscard]]   const CPUState_6502&  state() const { return m_State; }
                         void            state(const CPUState_6502& state) { m_State = state; }
 
-        [[nodiscard]]   uint8           readMemory(uint16 address) const;
-                        void            writeMemory(uint16 address, uint8 value);
 
         [[nodiscard]]   uint32          cycles() const { return m_Cycles; };
 
     private:
         typedef void (CPU_6502::*OpcodeHandler)();
+
+        [[nodiscard]]   uint8           readMemory(uint16 address);
+                        void            writeMemory(uint16 address, uint8 value);
 
         [[nodiscard]]   bool            getRegister(const RegisterFlag flag) const          { return m_State.p & flag;                          }
         void                            setRegister(const RegisterFlag flag, bool value)    { value ? m_State.p |= flag : m_State.p &= ~flag;   }
@@ -56,13 +57,22 @@ namespace NESEmu {
         // Opcodes
         template<unsigned OP>   void    opInvalid();
                                 void    opNOP();
+                                void    opADC(uint8 value);
+                                void    opADC_imm();
+                                void    opADC_zp();
+                                void    opADC_zp_X();
+                                void    opADC_abs();
+                                void    opADC_abs_X();
+                                void    opADC_abs_Y();
+                                void    opADC_ind_X();
+                                void    opADC_ind_Y();
                                 void    opINX();
                                 void    opINY();
 
         CPUState_6502   m_State {};
         OpcodeHandler   m_OpcodeHandlers[256] { nullptr };
 
-        uint32          m_Cycles { 0 };
+        uint32          m_Cycles = 0;
 
         Bus*            m_Bus;
     };

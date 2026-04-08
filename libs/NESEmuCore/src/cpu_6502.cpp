@@ -1,5 +1,7 @@
 #include "NESEmuCore/cpu_6502.hpp"
 
+#include <stdexcept>
+
 #include "NESEmuCore/bus.hpp"
 
 using namespace NESEmu;
@@ -109,36 +111,36 @@ CPU_6502::CPU_6502(Bus* bus) :
     m_OpcodeHandlers[0x5F] = &CPU_6502::opInvalid<0x5F>;
 
     m_OpcodeHandlers[0x60] = &CPU_6502::opInvalid<0x60>;
-    m_OpcodeHandlers[0x61] = &CPU_6502::opInvalid<0x61>;
+    m_OpcodeHandlers[0x61] = &CPU_6502::opADC_ind_X;
     m_OpcodeHandlers[0x62] = &CPU_6502::opInvalid<0x62>;
     m_OpcodeHandlers[0x63] = &CPU_6502::opInvalid<0x63>;
     m_OpcodeHandlers[0x64] = &CPU_6502::opInvalid<0x64>;
-    m_OpcodeHandlers[0x65] = &CPU_6502::opInvalid<0x65>;
+    m_OpcodeHandlers[0x65] = &CPU_6502::opADC_zp;
     m_OpcodeHandlers[0x66] = &CPU_6502::opInvalid<0x66>;
     m_OpcodeHandlers[0x67] = &CPU_6502::opInvalid<0x67>;
     m_OpcodeHandlers[0x68] = &CPU_6502::opInvalid<0x68>;
-    m_OpcodeHandlers[0x69] = &CPU_6502::opInvalid<0x69>;
+    m_OpcodeHandlers[0x69] = &CPU_6502::opADC_imm;
     m_OpcodeHandlers[0x6A] = &CPU_6502::opInvalid<0x6A>;
     m_OpcodeHandlers[0x6B] = &CPU_6502::opInvalid<0x6B>;
     m_OpcodeHandlers[0x6C] = &CPU_6502::opInvalid<0x6C>;
-    m_OpcodeHandlers[0x6D] = &CPU_6502::opInvalid<0x6D>;
+    m_OpcodeHandlers[0x6D] = &CPU_6502::opADC_abs;
     m_OpcodeHandlers[0x6E] = &CPU_6502::opInvalid<0x6E>;
     m_OpcodeHandlers[0x6F] = &CPU_6502::opInvalid<0x6F>;
 
     m_OpcodeHandlers[0x70] = &CPU_6502::opInvalid<0x70>;
-    m_OpcodeHandlers[0x71] = &CPU_6502::opInvalid<0x71>;
+    m_OpcodeHandlers[0x71] = &CPU_6502::opADC_ind_Y;
     m_OpcodeHandlers[0x72] = &CPU_6502::opInvalid<0x72>;
     m_OpcodeHandlers[0x73] = &CPU_6502::opInvalid<0x73>;
     m_OpcodeHandlers[0x74] = &CPU_6502::opInvalid<0x74>;
-    m_OpcodeHandlers[0x75] = &CPU_6502::opInvalid<0x75>;
+    m_OpcodeHandlers[0x75] = &CPU_6502::opADC_zp_X;
     m_OpcodeHandlers[0x76] = &CPU_6502::opInvalid<0x76>;
     m_OpcodeHandlers[0x77] = &CPU_6502::opInvalid<0x77>;
     m_OpcodeHandlers[0x78] = &CPU_6502::opInvalid<0x78>;
-    m_OpcodeHandlers[0x79] = &CPU_6502::opInvalid<0x79>;
+    m_OpcodeHandlers[0x79] = &CPU_6502::opADC_abs_Y;
     m_OpcodeHandlers[0x7A] = &CPU_6502::opInvalid<0x7A>;
     m_OpcodeHandlers[0x7B] = &CPU_6502::opInvalid<0x7B>;
     m_OpcodeHandlers[0x7C] = &CPU_6502::opInvalid<0x7C>;
-    m_OpcodeHandlers[0x7D] = &CPU_6502::opInvalid<0x7D>;
+    m_OpcodeHandlers[0x7D] = &CPU_6502::opADC_abs_X;
     m_OpcodeHandlers[0x7E] = &CPU_6502::opInvalid<0x7E>;
     m_OpcodeHandlers[0x7F] = &CPU_6502::opInvalid<0x7F>;
 
@@ -306,21 +308,120 @@ void CPU_6502::execute() {
     (this->*m_OpcodeHandlers[opcode])();
 }
 
-uint8 CPU_6502::readMemory(const uint16 address) const {
+uint8 CPU_6502::readMemory(const uint16 address) {
+    m_Cycles++;
     return m_Bus->read(address);
 }
 
 void CPU_6502::writeMemory(uint16 address, const uint8 value) {
+    m_Cycles++;
     m_Bus->write(address, value);
 }
 
 template<unsigned OP>
 void CPU_6502::opInvalid() {
     // TODO: Log invalid opcode (and halt execution?)
+    throw std::runtime_error("Invalid opcode");
 }
 
 void CPU_6502::opNOP() {
-    m_Cycles += 2;
+    // NOP has a dummy read which takes an extra cycle
+    m_Cycles++;
+}
+
+void CPU_6502::opADC(uint8 value) {
+    const uint8 carry = getRegister(C);
+    const uint8 total = m_State.a + value + carry;
+
+    setRegister(C, m_State.a + value + carry > 0xFF);
+    setRegister(Z, !total);
+    setRegister(V, (total ^ m_State.a) & (total ^ value) & 0x80);
+    setRegister(N, total & 0x80);
+
+    m_State.a = total;
+}
+
+void CPU_6502::opADC_imm() {
+    const uint8 value = readMemory(m_State.pc++);
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_zp() {
+    const uint16 addr = readMemory(m_State.pc++);
+    const uint8 value = readMemory(addr);
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_zp_X() {
+    const uint16 addr = readMemory(m_State.pc++) + m_State.x & 0xFF;
+    const uint8 value = readMemory(addr);
+
+    // Index mode takes an extra internal cycle
+    m_Cycles++;
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_abs() {
+    const uint8 lo = readMemory(m_State.pc++);
+    const uint8 hi = readMemory(m_State.pc++);
+    const uint8 value = readMemory(hi << 8 | lo);
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_abs_X() {
+    const uint8 lo = readMemory(m_State.pc++);
+    const uint8 hi = readMemory(m_State.pc++);
+    const uint8 value = readMemory((hi << 8 | lo) +  m_State.x);
+
+    if (lo + m_State.x > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_Cycles++;
+    }
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_abs_Y() {
+    const uint8 lo = readMemory(m_State.pc++);
+    const uint8 hi = readMemory(m_State.pc++);
+    const uint8 value = readMemory((hi << 8 | lo) +  m_State.y);
+
+    if (lo + m_State.y > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_Cycles++;
+    }
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_ind_X() {
+    uint8 addr = readMemory(m_State.pc++) + m_State.x;
+    const uint8 lo = readMemory(addr++);
+    const uint8 hi = readMemory(addr);
+    const uint8 value = readMemory(hi << 8 | lo);
+
+    // Index mode takes an extra internal cycle
+    m_Cycles++;
+
+    opADC(value);
+}
+
+void CPU_6502::opADC_ind_Y() {
+    uint8 addr = readMemory(m_State.pc++);
+    const uint8 lo = readMemory(addr++);
+    const uint8 hi = readMemory(addr);
+    const uint8 value = readMemory((hi << 8 | lo) + m_State.y);
+
+    if (lo + m_State.y > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_Cycles++;
+    }
+
+    opADC(value);
 }
 
 void CPU_6502::opINX() {
@@ -329,7 +430,8 @@ void CPU_6502::opINX() {
     setRegister(N, m_State.x & 0x80);
     setRegister(Z, !m_State.x);
 
-    m_Cycles += 2;
+    // implied addressing mode takes an extra cycle
+    m_Cycles++;
 }
 
 void CPU_6502::opINY() {
@@ -338,5 +440,6 @@ void CPU_6502::opINY() {
     setRegister(N, m_State.y & 0x80);
     setRegister(Z, !m_State.y);
 
-    m_Cycles += 2;
+    // implied addressing mode takes an extra cycle
+    m_Cycles++;
 }
