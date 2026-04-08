@@ -1,9 +1,8 @@
 #ifndef NESEMU_CPU_STEP_TESTS_HPP
 #define NESEMU_CPU_STEP_TESTS_HPP
 
-#include <nlohmann/json.hpp>
-#include <iostream>
 #include <fstream>
+#include <nlohmann/json.hpp>
 
 #include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/cpu6502.hpp"
@@ -19,7 +18,7 @@ struct CPUTestState {
 
 inline bool operator==(const CPUTestState& lhs, const CPUTestState& rhs)
 {
-    if (!(lhs.cpu == rhs.cpu)) {
+    if (lhs.cpu != rhs.cpu) {
         return false;
     }
 

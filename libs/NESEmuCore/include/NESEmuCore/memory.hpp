@@ -4,6 +4,8 @@
 #include "emu_types.hpp"
 #include "bus_mappable.hpp"
 
+#include <array>
+
 namespace NESEmu {
 class InternalRam : public BusMappable<InternalRam> {
     friend BusMappable;
@@ -24,7 +26,7 @@ protected:
 
 private:
     // The NES cpu has 2KB of memory, with 3 mirrored sections repeated from $800-$1FFF
-    uint8 m_memory[0x800]{};
+    std::array<uint8, 0x800> m_memory{};
 };
 
 class FlatMemory : public BusMappable<FlatMemory> {
@@ -42,7 +44,7 @@ protected:
 
 private:
     // Tests can use the full 64kb address space
-    uint8 m_memory[0x10000]{};
+    std::array<uint8, 0x10000> m_memory{};
 };
 }
 

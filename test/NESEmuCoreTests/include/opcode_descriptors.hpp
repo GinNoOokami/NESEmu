@@ -3,8 +3,8 @@
 
 #include "NESEmuCore/emu_types.hpp"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 using namespace NESEmu;
 
