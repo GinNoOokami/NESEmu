@@ -54,6 +54,16 @@ private:
     [[nodiscard]] bool getRegister(const RegisterFlag flag) const { return m_state.p & flag; }
     void               setRegister(const RegisterFlag flag, bool value) { m_state.p = (m_state.p & ~flag) | (-static_cast<uint8>(value) & flag); }
 
+    // Addressing modes
+    inline uint8 addressModeImmediate();
+    inline uint8 addressModeZeroPage();
+    inline uint8 addressModeZeroPageX();
+    inline uint8 addressModeAbsolute();
+    inline uint8 addressModeAbsoluteX();
+    inline uint8 addressModeAbsoluteY();
+    inline uint8 addressModeIndirectX();
+    inline uint8 addressModeIndirectY();
+
     // Opcodes
     template <unsigned OP> void opInvalid();
     void                        opNOP();
@@ -66,6 +76,15 @@ private:
     void                        opADC_abs_Y();
     void                        opADC_ind_X();
     void                        opADC_ind_Y();
+    void                        opAND(uint8 value);
+    void                        opAND_imm();
+    void                        opAND_zp();
+    void                        opAND_zp_X();
+    void                        opAND_abs();
+    void                        opAND_abs_X();
+    void                        opAND_abs_Y();
+    void                        opAND_ind_X();
+    void                        opAND_ind_Y();
     void                        opINX();
     void                        opINY();
 

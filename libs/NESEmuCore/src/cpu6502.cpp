@@ -44,36 +44,36 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x1F] = &Cpu6502::opInvalid<0x1F>;
 
     m_opcodeHandlers[0x20] = &Cpu6502::opInvalid<0x20>;
-    m_opcodeHandlers[0x21] = &Cpu6502::opInvalid<0x21>;
+    m_opcodeHandlers[0x21] = &Cpu6502::opAND_ind_X;
     m_opcodeHandlers[0x22] = &Cpu6502::opInvalid<0x22>;
     m_opcodeHandlers[0x23] = &Cpu6502::opInvalid<0x23>;
     m_opcodeHandlers[0x24] = &Cpu6502::opInvalid<0x24>;
-    m_opcodeHandlers[0x25] = &Cpu6502::opInvalid<0x25>;
+    m_opcodeHandlers[0x25] = &Cpu6502::opAND_zp;
     m_opcodeHandlers[0x26] = &Cpu6502::opInvalid<0x26>;
     m_opcodeHandlers[0x27] = &Cpu6502::opInvalid<0x27>;
     m_opcodeHandlers[0x28] = &Cpu6502::opInvalid<0x28>;
-    m_opcodeHandlers[0x29] = &Cpu6502::opInvalid<0x29>;
+    m_opcodeHandlers[0x29] = &Cpu6502::opAND_imm;
     m_opcodeHandlers[0x2A] = &Cpu6502::opInvalid<0x2A>;
     m_opcodeHandlers[0x2B] = &Cpu6502::opInvalid<0x2B>;
     m_opcodeHandlers[0x2C] = &Cpu6502::opInvalid<0x2C>;
-    m_opcodeHandlers[0x2D] = &Cpu6502::opInvalid<0x2D>;
+    m_opcodeHandlers[0x2D] = &Cpu6502::opAND_abs;
     m_opcodeHandlers[0x2E] = &Cpu6502::opInvalid<0x2E>;
     m_opcodeHandlers[0x2F] = &Cpu6502::opInvalid<0x2F>;
 
     m_opcodeHandlers[0x30] = &Cpu6502::opInvalid<0x30>;
-    m_opcodeHandlers[0x31] = &Cpu6502::opInvalid<0x31>;
+    m_opcodeHandlers[0x31] = &Cpu6502::opAND_ind_Y;
     m_opcodeHandlers[0x32] = &Cpu6502::opInvalid<0x32>;
     m_opcodeHandlers[0x33] = &Cpu6502::opInvalid<0x33>;
     m_opcodeHandlers[0x34] = &Cpu6502::opInvalid<0x34>;
-    m_opcodeHandlers[0x35] = &Cpu6502::opInvalid<0x35>;
+    m_opcodeHandlers[0x35] = &Cpu6502::opAND_zp_X;
     m_opcodeHandlers[0x36] = &Cpu6502::opInvalid<0x36>;
     m_opcodeHandlers[0x37] = &Cpu6502::opInvalid<0x37>;
     m_opcodeHandlers[0x38] = &Cpu6502::opInvalid<0x38>;
-    m_opcodeHandlers[0x39] = &Cpu6502::opInvalid<0x39>;
+    m_opcodeHandlers[0x39] = &Cpu6502::opAND_abs_Y;
     m_opcodeHandlers[0x3A] = &Cpu6502::opInvalid<0x3A>;
     m_opcodeHandlers[0x3B] = &Cpu6502::opInvalid<0x3B>;
     m_opcodeHandlers[0x3C] = &Cpu6502::opInvalid<0x3C>;
-    m_opcodeHandlers[0x3D] = &Cpu6502::opInvalid<0x3D>;
+    m_opcodeHandlers[0x3D] = &Cpu6502::opAND_abs_X;
     m_opcodeHandlers[0x3E] = &Cpu6502::opInvalid<0x3E>;
     m_opcodeHandlers[0x3F] = &Cpu6502::opInvalid<0x3F>;
 
@@ -324,6 +324,106 @@ void Cpu6502::writeMemory(uint16 address, const uint8 value)
     m_bus.write(address, value);
 }
 
+uint8 Cpu6502::addressModeImmediate()
+{
+    const uint8 value = readMemory(m_state.pc++);
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeZeroPage()
+{
+    const uint8 zp    = readMemory(m_state.pc++);
+    const uint8 value = readMemory(zp);
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeZeroPageX()
+{
+    const uint8 zp    = readMemory(m_state.pc++) + m_state.x;
+    const uint8 value = readMemory(zp);
+
+    // Zero page indexing takes an extra internal cycle, so the ALU
+    // has time to add the value of the register to the base address
+    m_cycles++;
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeAbsolute()
+{
+    const uint8  lo    = readMemory(m_state.pc++);
+    const uint8  hi    = readMemory(m_state.pc++);
+    const uint16 addr  = hi << 8 | lo;
+    const uint8  value = readMemory(addr);
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeAbsoluteX()
+{
+    const uint8  lo    = readMemory(m_state.pc++);
+    const uint8  hi    = readMemory(m_state.pc++);
+    const uint16 base  = hi << 8 | lo;
+    const uint16 addr  = base + m_state.x;
+    const uint8  value = readMemory(addr);
+
+    if (lo + m_state.x > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_cycles++;
+    }
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeAbsoluteY()
+{
+    const uint8  lo    = readMemory(m_state.pc++);
+    const uint8  hi    = readMemory(m_state.pc++);
+    const uint16 base  = hi << 8 | lo;
+    const uint16 addr  = base + m_state.y;
+    const uint8  value = readMemory(addr);
+
+    if (lo + m_state.y > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_cycles++;
+    }
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeIndirectX()
+{
+    uint8        zp    = readMemory(m_state.pc++) + m_state.x;
+    const uint8  lo    = readMemory(zp++);
+    const uint8  hi    = readMemory(zp);
+    const uint16 addr  = hi << 8 | lo;
+    const uint8  value = readMemory(addr);
+
+    // Index mode takes an extra internal cycle
+    m_cycles++;
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeIndirectY()
+{
+    uint8        zp    = readMemory(m_state.pc++);
+    const uint8  lo    = readMemory(zp++);
+    const uint8  hi    = readMemory(zp);
+    const uint16 base  = hi << 8 | lo;
+    const uint16 addr  = base + m_state.y;
+    const uint8  value = readMemory(addr);
+
+    if (lo + m_state.y > 0xFF) {
+        // Crossing a page boundry takes an extra internal cycle
+        m_cycles++;
+    }
+
+    return value;
+}
+
 template <unsigned OP>
 void Cpu6502::opInvalid()
 {
@@ -353,101 +453,108 @@ void Cpu6502::opADC(const uint8 value)
 
 void Cpu6502::opADC_imm()
 {
-    const uint8 value = readMemory(m_state.pc++);
-
+    const uint8 value = addressModeImmediate();
     opADC(value);
 }
 
 void Cpu6502::opADC_zp()
 {
-    const uint8 zp    = readMemory(m_state.pc++);
-    const uint8 value = readMemory(zp);
-
+    const uint8 value = addressModeZeroPage();
     opADC(value);
 }
 
 void Cpu6502::opADC_zp_X()
 {
-    const uint8 zp    = readMemory(m_state.pc++) + m_state.x;
-    const uint8 value = readMemory(zp);
-
-    // Index mode takes an extra internal cycle
-    m_cycles++;
-
+    const uint8 value = addressModeZeroPageX();
     opADC(value);
 }
 
 void Cpu6502::opADC_abs()
 {
-    const uint8  lo    = readMemory(m_state.pc++);
-    const uint8  hi    = readMemory(m_state.pc++);
-    const uint16 addr  = hi << 8 | lo;
-    const uint8  value = readMemory(addr);
-
+    const uint8 value = addressModeAbsolute();
     opADC(value);
 }
 
 void Cpu6502::opADC_abs_X()
 {
-    const uint8  lo    = readMemory(m_state.pc++);
-    const uint8  hi    = readMemory(m_state.pc++);
-    const uint16 base  = hi << 8 | lo;
-    const uint16 addr  = base + m_state.x;
-    const uint8  value = readMemory(addr);
-
-    if (lo + m_state.x > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
-        m_cycles++;
-    }
-
+    const uint8 value = addressModeAbsoluteX();
     opADC(value);
 }
 
 void Cpu6502::opADC_abs_Y()
 {
-    const uint8  lo    = readMemory(m_state.pc++);
-    const uint8  hi    = readMemory(m_state.pc++);
-    const uint16 base  = hi << 8 | lo;
-    const uint16 addr  = base + m_state.y;
-    const uint8  value = readMemory(addr);
-
-    if (lo + m_state.y > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
-        m_cycles++;
-    }
-
+    const uint8 value = addressModeAbsoluteY();
     opADC(value);
 }
 
 void Cpu6502::opADC_ind_X()
 {
-    uint8        zp    = readMemory(m_state.pc++) + m_state.x;
-    const uint8  lo    = readMemory(zp++);
-    const uint8  hi    = readMemory(zp);
-    const uint16 addr  = hi << 8 | lo;
-    const uint8  value = readMemory(addr);
-
-    // Index mode takes an extra internal cycle
-    m_cycles++;
-
+    const uint8 value = addressModeIndirectX();
     opADC(value);
 }
 
 void Cpu6502::opADC_ind_Y()
 {
-    uint8        zp    = readMemory(m_state.pc++);
-    const uint8  lo    = readMemory(zp++);
-    const uint8  hi    = readMemory(zp);
-    const uint16 base  = hi << 8 | lo;
-    const uint16 addr  = base + m_state.y;
-    const uint8  value = readMemory(addr);
-
-    if (lo + m_state.y > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
-        m_cycles++;
-    }
-
+    const uint8 value = addressModeIndirectY();
     opADC(value);
+}
+
+void Cpu6502::opAND(const uint8 value)
+{
+    const uint8 data = m_state.a & value;
+
+    setRegister(Z, !data);
+    setRegister(N, data & 0x80);
+
+    m_state.a = data;
+}
+
+void Cpu6502::opAND_imm()
+{
+    const uint8 value = addressModeImmediate();
+    opAND(value);
+}
+
+void Cpu6502::opAND_zp()
+{
+    const uint8 value = addressModeZeroPage();
+    opAND(value);
+}
+
+void Cpu6502::opAND_zp_X()
+{
+    const uint8 value = addressModeZeroPageX();
+    opAND(value);
+}
+
+void Cpu6502::opAND_abs()
+{
+    const uint8 value = addressModeAbsolute();
+    opAND(value);
+}
+
+void Cpu6502::opAND_abs_X()
+{
+    const uint8 value = addressModeAbsoluteX();
+    opAND(value);
+}
+
+void Cpu6502::opAND_abs_Y()
+{
+    const uint8 value = addressModeAbsoluteY();
+    opAND(value);
+}
+
+void Cpu6502::opAND_ind_X()
+{
+    const uint8 value = addressModeIndirectX();
+    opAND(value);
+}
+
+void Cpu6502::opAND_ind_Y()
+{
+    const uint8 value = addressModeIndirectY();
+    opAND(value);
 }
 
 void Cpu6502::opINX()
