@@ -10,7 +10,7 @@ add_executable(NESEmuCoreTests)
 target_sources(NESEmuCoreTests
     PRIVATE
         src/test_main.cpp
-        src/cpu_6502_tests.cpp
+        src/cpu6502_tests.cpp
 
     PUBLIC
         FILE_SET HEADERS

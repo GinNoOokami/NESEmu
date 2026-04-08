@@ -36,7 +36,7 @@ namespace NESEmu {
 
     class Bus {
     public:
-        Bus(Memory* memory) : m_memory(memory) {}
+        explicit Bus(Memory* memory) : m_memory(memory) {}
         ~Bus() = default;
 
         uint8   read(uint16 address);

@@ -2,7 +2,7 @@
 #include <SDL.h>
 
 #include "NESEmuCore/bus.hpp"
-#include "NESEmuCore/cpu_6502.hpp"
+#include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/memory.hpp"
 
 using namespace NESEmu;
@@ -10,7 +10,7 @@ using namespace NESEmu;
 int main() {
     InternalRam memory;
     Bus bus(&memory);
-    const CPU_6502 cpu(&bus);
+    const Cpu6502 cpu(&bus);
 
     SDL_Init(SDL_INIT_VIDEO);
 

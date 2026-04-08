@@ -6,14 +6,14 @@
 #include <fstream>
 
 #include "NESEmuCore/bus.hpp"
-#include "NESEmuCore/cpu_6502.hpp"
+#include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/debug_format.hpp"
 
 using json = nlohmann::json;
 
 namespace NESEmu {
     struct CPUTestState {
-        CPU_6502::CPUState_6502 cpu {};
+        Cpu6502::State cpu {};
         std::vector<std::tuple<uint16, uint8>> memory;
     };
 
@@ -110,14 +110,14 @@ namespace NESEmu {
             }
         }
 
-        void initializeCpu(CPU_6502& cpu, Bus& bus) const {
+        void initializeCpu(Cpu6502& cpu, Bus& bus) const {
             cpu.state(initial_state.cpu);
             for (auto [ address, value ] : initial_state.memory) {
                 bus.write(address, value);
             }
         }
 
-        [[nodiscard]] CPUTestState currentState(const CPU_6502& cpu, Bus& bus) {
+        [[nodiscard]] CPUTestState currentState(const Cpu6502& cpu, Bus& bus) {
             CPUTestState current;
             current.cpu = cpu.state();
             for (auto [ address, value ] : final_state.memory) {

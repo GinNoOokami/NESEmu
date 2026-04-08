@@ -6,7 +6,7 @@
 namespace NESEmu {
     class Bus;
 
-    class CPU_6502 {
+    class Cpu6502 {
         static constexpr uint16 VEC_NMI   = 0xFFFA;
         static constexpr uint16 VEC_RESET = 0xFFFC;
         static constexpr uint16 VEC_IRQ   = 0xFFFE;
@@ -23,7 +23,7 @@ namespace NESEmu {
             N = 1 << 7, // Negative
         };
 
-        struct CPUState_6502 {
+        struct State {
             uint16    pc;
             uint16    sp;
             uint8     a;
@@ -32,27 +32,27 @@ namespace NESEmu {
             uint8     p;
         };
 
-        CPU_6502(Bus* bus);
-        ~CPU_6502();
+        explicit Cpu6502(Bus& bus);
+        ~Cpu6502();
 
         void startup();
         void reset();
         void execute();
 
-        [[nodiscard]]   const CPUState_6502&  state() const { return m_State; }
-                        void            state(const CPUState_6502& state) { m_State = state; }
+        [[nodiscard]]   const State&    state() const { return m_state; }
+                        void            state(const State& state) { m_state = state; }
 
 
-        [[nodiscard]]   uint32          cycles() const { return m_Cycles; };
+        [[nodiscard]]   uint32          cycles() const { return m_cycles; };
 
     private:
-        typedef void (CPU_6502::*OpcodeHandler)();
+        typedef void (Cpu6502::*OpcodeHandler)();
 
         [[nodiscard]]   uint8           readMemory(uint16 address);
                         void            writeMemory(uint16 address, uint8 value);
 
-        [[nodiscard]]   bool            getRegister(const RegisterFlag flag) const          { return m_State.p & flag;                          }
-        void                            setRegister(const RegisterFlag flag, bool value)    { value ? m_State.p |= flag : m_State.p &= ~flag;   }
+        [[nodiscard]]   bool            getRegister(const RegisterFlag flag) const          { return m_state.p & flag;                          }
+        void                            setRegister(const RegisterFlag flag, bool value)    { value ? m_state.p |= flag : m_state.p &= ~flag;   }
 
         // Opcodes
         template<unsigned OP>   void    opInvalid();
@@ -69,15 +69,15 @@ namespace NESEmu {
                                 void    opINX();
                                 void    opINY();
 
-        CPUState_6502   m_State {};
-        OpcodeHandler   m_OpcodeHandlers[256] { nullptr };
+        State           m_state {};
+        OpcodeHandler   m_opcodeHandlers[256] { nullptr };
 
-        uint32          m_Cycles = 0;
+        uint32          m_cycles = 0;
 
-        Bus*            m_Bus;
+        Bus&            m_bus;
     };
 
-    inline bool operator==(const CPU_6502::CPUState_6502& lhs, const CPU_6502::CPUState_6502& rhs) {
+    inline bool operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs) {
         return lhs.pc == rhs.pc &&
                lhs.sp == rhs.sp &&
                lhs.a  == rhs.a  &&
@@ -86,7 +86,7 @@ namespace NESEmu {
                lhs.p  == rhs.p;
     }
 
-    inline bool operator!=(const CPU_6502::CPUState_6502& lhs, const CPU_6502::CPUState_6502& rhs) {
+    inline bool operator!=(const Cpu6502::State& lhs, const Cpu6502::State& rhs) {
         return !(lhs == rhs);
     }
 }

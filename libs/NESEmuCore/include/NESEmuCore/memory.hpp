@@ -18,12 +18,12 @@ namespace NESEmu {
     protected:
         [[nodiscard]] static bool   isReadEnabled(const uint16 address) { return (address & ADDRESS_MASK) == ADDRESS_ENABLE_MASK; }
         [[nodiscard]] static bool   isWriteEnabled(const uint16 address) { return (address & ADDRESS_MASK) == ADDRESS_ENABLE_MASK; }
-        [[nodiscard]] uint8         readBus(const uint16 address) const   { return m_Memory[address & ADDRESS_MIRROR_MASK]; }
-                      void          writeBus(const uint16 address, const uint8 data)    { m_Memory[address & ADDRESS_MIRROR_MASK] = data; }
+        [[nodiscard]] uint8         readBus(const uint16 address) const   { return m_memory[address & ADDRESS_MIRROR_MASK]; }
+                      void          writeBus(const uint16 address, const uint8 data)    { m_memory[address & ADDRESS_MIRROR_MASK] = data; }
 
     private:
         // The NES cpu has 2KB of memory, with 3 mirrored sections repeated from $800-$1FFF
-        uint8 m_Memory[0x800] {};
+        uint8 m_memory[0x800] {};
     };
 
     class FlatMemory : public BusMappable<FlatMemory> {
@@ -35,12 +35,12 @@ namespace NESEmu {
     protected:
         [[nodiscard]] static bool   isReadEnabled(const uint16) { return true; }
         [[nodiscard]] static bool   isWriteEnabled(const uint16) { return true; }
-        [[nodiscard]] uint8         readBus(const uint16 address) const                 { return m_Memory[address]; }
-                      void          writeBus(const uint16 address, const uint8 data)    { m_Memory[address] = data; }
+        [[nodiscard]] uint8         readBus(const uint16 address) const                 { return m_memory[address]; }
+                      void          writeBus(const uint16 address, const uint8 data)    { m_memory[address] = data; }
 
     private:
         // Tests can use the full 64kb address space
-        uint8 m_Memory[0x10000] {};
+        uint8 m_memory[0x10000] {};
     };
 }
 

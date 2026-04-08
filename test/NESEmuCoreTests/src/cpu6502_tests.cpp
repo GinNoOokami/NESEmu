@@ -2,7 +2,7 @@
 #include "opcode_descriptors.hpp"
 
 #include "NESEmuCore/bus.hpp"
-#include "NESEmuCore/cpu_6502.hpp"
+#include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/memory.hpp"
 
 #include <doctest.h>
@@ -18,7 +18,7 @@ std::string createTestName(const std::string& instructionDesc, const CpuStepTest
 TEST_CASE("CPU Init State") {
     FlatMemory memory;
     Bus bus(&memory);
-    CPU_6502 cpu(&bus);
+    Cpu6502 cpu(bus);
     cpu.startup();
 
     CHECK_EQ(cpu.state().sp, 0xFD);
@@ -41,7 +41,7 @@ TEST_CASE("CPU Step Tests") {
                 // Setup initial state
                 FlatMemory memory;
                 Bus bus(&memory);
-                CPU_6502 cpu(&bus);
+                Cpu6502 cpu(bus);
                 test.initializeCpu(cpu, bus);
                 auto initialCycles = cpu.cycles();
 
