@@ -7,7 +7,7 @@
 
 namespace NESEmu {
 template <typename T>
-std::string to_register(T value)
+std::string toRegister(T value)
 {
     std::ostringstream oss;
     oss << "$"
@@ -19,7 +19,7 @@ std::string to_register(T value)
     return oss.str();
 }
 
-inline std::string format_flags(uint8_t p)
+inline std::string formatFlags(uint8_t p)
 {
     return std::string{
         p & Cpu6502::RegisterFlag::N ? 'N' : '.',
@@ -33,21 +33,21 @@ inline std::string format_flags(uint8_t p)
     };
 }
 
-inline std::string cpu_state_to_string(const Cpu6502::State& state)
+inline std::string cpuStateToString(const Cpu6502::State& state)
 {
     std::ostringstream oss;
-    oss << "PC: " << to_register(state.pc)
-        << " SP: " << to_register(state.sp)
-        << " A: " << to_register(state.a)
-        << " X: " << to_register(state.x)
-        << " Y: " << to_register(state.y)
-        << " P: [" << format_flags(state.p) << "]";
+    oss << "PC: " << toRegister(state.pc)
+        << " SP: " << toRegister(state.sp)
+        << " A: " << toRegister(state.a)
+        << " X: " << toRegister(state.x)
+        << " Y: " << toRegister(state.y)
+        << " P: [" << formatFlags(state.p) << "]";
     return oss.str();
 }
 
 inline std::ostream& operator<<(std::ostream& os, const Cpu6502::State& value)
 {
-    os << cpu_state_to_string(value);
+    os << cpuStateToString(value);
     return os;
 }
 }

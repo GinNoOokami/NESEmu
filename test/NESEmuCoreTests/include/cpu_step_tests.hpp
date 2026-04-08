@@ -40,7 +40,7 @@ inline bool operator!=(const CPUTestState& lhs, const CPUTestState& rhs)
     return !(lhs == rhs);
 }
 
-inline std::string cpu_test_state_to_string(const CPUTestState& state)
+inline std::string cpuTestStateToString(const CPUTestState& state)
 {
     std::ostringstream oss;
     oss << "{\n"
@@ -48,7 +48,7 @@ inline std::string cpu_test_state_to_string(const CPUTestState& state)
         << "  memory:\n";
 
     for (const auto& [address, value] : state.memory) {
-        oss << "    " << to_register(address) << " = " << to_register(value) << "\n";
+        oss << "    " << toRegister(address) << " = " << toRegister(value) << "\n";
     }
 
     oss << "}";
@@ -57,7 +57,7 @@ inline std::string cpu_test_state_to_string(const CPUTestState& state)
 
 inline std::ostream& operator<<(std::ostream& os, const CPUTestState& value)
 {
-    os << cpu_test_state_to_string(value);
+    os << cpuTestStateToString(value);
     return os;
 }
 
@@ -92,7 +92,7 @@ struct CpuStepTest {
     CPUTestState                                        final_state{};
     std::vector<std::tuple<uint16, uint8, std::string>> cycles{};
 
-    static void from_json(uint8 opcode, std::vector<CpuStepTest>& tests)
+    static void loadTestData(uint8 opcode, std::vector<CpuStepTest>& tests)
     {
         std::ostringstream oss;
         oss << std::hex << std::setw(2) << std::setfill('0') << static_cast<uint32>(opcode);

@@ -36,7 +36,7 @@ TEST_CASE("CPU Step Tests")
 
     for (const auto& [opcode, instructionDesc] : opcodeDescriptionList) {
         SUBCASE(instructionDesc) {
-            CpuStepTest::from_json(opcode, tests);
+            CpuStepTest::loadTestData(opcode, tests);
 
             for (auto& test : tests) {
                 INFO("Executing test: ", createTestName(instructionDesc, test), "\ninitial_state=", test.initial_state);
@@ -52,7 +52,7 @@ TEST_CASE("CPU Step Tests")
                 cpu.execute();
 
                 // Test final state
-                auto actual = test.currentState(cpu, bus);
+                auto actual        = test.currentState(cpu, bus);
                 auto elapsedCycles = cpu.cycles() - initialCycles;
                 CHECK_EQ(test.final_state, actual);
                 CHECK_EQ(test.cycles.size(), elapsedCycles);
