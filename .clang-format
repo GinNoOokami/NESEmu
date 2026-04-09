@@ -3,4 +3,5 @@ Language: Cpp
 LineEnding: LF
 AlignConsecutiveDeclarations: true
 AlignConsecutiveAssignments: AcrossEmptyLines
+AlignEscapedNewlines: LeftWithLastLine
 AlignOperands: AlignAfterOperator

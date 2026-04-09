@@ -15,15 +15,15 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x03] = &Cpu6502::opInvalid<0x03>;
     m_opcodeHandlers[0x04] = &Cpu6502::opInvalid<0x04>;
     m_opcodeHandlers[0x05] = &Cpu6502::opInvalid<0x05>;
-    m_opcodeHandlers[0x06] = &Cpu6502::opInvalid<0x06>;
+    m_opcodeHandlers[0x06] = &Cpu6502::opASL_zp;
     m_opcodeHandlers[0x07] = &Cpu6502::opInvalid<0x07>;
     m_opcodeHandlers[0x08] = &Cpu6502::opInvalid<0x08>;
     m_opcodeHandlers[0x09] = &Cpu6502::opInvalid<0x09>;
-    m_opcodeHandlers[0x0A] = &Cpu6502::opInvalid<0x0A>;
+    m_opcodeHandlers[0x0A] = &Cpu6502::opASL_acc;
     m_opcodeHandlers[0x0B] = &Cpu6502::opInvalid<0x0B>;
     m_opcodeHandlers[0x0C] = &Cpu6502::opInvalid<0x0C>;
     m_opcodeHandlers[0x0D] = &Cpu6502::opInvalid<0x0D>;
-    m_opcodeHandlers[0x0E] = &Cpu6502::opInvalid<0x0E>;
+    m_opcodeHandlers[0x0E] = &Cpu6502::opASL_abs;
     m_opcodeHandlers[0x0F] = &Cpu6502::opInvalid<0x0F>;
 
     m_opcodeHandlers[0x10] = &Cpu6502::opInvalid<0x10>;
@@ -32,7 +32,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x13] = &Cpu6502::opInvalid<0x13>;
     m_opcodeHandlers[0x14] = &Cpu6502::opInvalid<0x14>;
     m_opcodeHandlers[0x15] = &Cpu6502::opInvalid<0x15>;
-    m_opcodeHandlers[0x16] = &Cpu6502::opInvalid<0x16>;
+    m_opcodeHandlers[0x16] = &Cpu6502::opASL_zp_X;
     m_opcodeHandlers[0x17] = &Cpu6502::opInvalid<0x17>;
     m_opcodeHandlers[0x18] = &Cpu6502::opInvalid<0x18>;
     m_opcodeHandlers[0x19] = &Cpu6502::opInvalid<0x19>;
@@ -40,7 +40,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x1B] = &Cpu6502::opInvalid<0x1B>;
     m_opcodeHandlers[0x1C] = &Cpu6502::opInvalid<0x1C>;
     m_opcodeHandlers[0x1D] = &Cpu6502::opInvalid<0x1D>;
-    m_opcodeHandlers[0x1E] = &Cpu6502::opInvalid<0x1E>;
+    m_opcodeHandlers[0x1E] = &Cpu6502::opASL_abs_X;
     m_opcodeHandlers[0x1F] = &Cpu6502::opInvalid<0x1F>;
 
     m_opcodeHandlers[0x20] = &Cpu6502::opInvalid<0x20>;
@@ -315,12 +315,16 @@ void Cpu6502::execute()
 uint8 Cpu6502::readMemory(const uint16 address)
 {
     m_cycles++;
-    return m_bus.read(address);
+    m_address = address;
+
+    return m_data = m_bus.read(address);
 }
 
-void Cpu6502::writeMemory(uint16 address, const uint8 value)
+void Cpu6502::writeMemory(const uint16 address, const uint8 value)
 {
     m_cycles++;
+    m_address = address;
+    m_data    = value;
     m_bus.write(address, value);
 }
 
@@ -361,6 +365,7 @@ uint8 Cpu6502::addressModeAbsolute()
     return value;
 }
 
+template <bool WRITE>
 uint8 Cpu6502::addressModeAbsoluteX()
 {
     const uint8  lo    = readMemory(m_state.pc++);
@@ -369,14 +374,30 @@ uint8 Cpu6502::addressModeAbsoluteX()
     const uint16 addr  = base + m_state.x;
     const uint8  value = readMemory(addr);
 
-    if (lo + m_state.x > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
+    // A note on the extra cycle taken when crossing a page boundry:
+    // https://retrocomputing.stackexchange.com/a/15623
+    // The CPU needs to do an addition of the 2-byte address after the opcode and the 8-bit unsigned displacement from X or Y register.
+    // Since 6502 addresses are always stored as little-endian, the CPU gets the lower byte first. During the time it reads the following higher byte, it simultaneously performs addition of the lower byte just read and the contents of the index register.
+    // If that addition results in no carry, the CPU instantly knows it does not need to update the high byte of the address. Therefore the read cycle at the correct address follows (no penalty).
+    // When there is carry, the 6502 needs another cycle to increment the high byte of the address. During that process, the 6502 does a dummy read cycle at the incorrect address, followed by the correct read cycle (penalty).
+    // It is obvious that there should be no 'dummy' write cycles at incorrect addresses. Therefore the 6502 always takes a 'penalty' read cycle with an (probably) incorrect address before performing the final write.
+    //
+    // To summarize, these indexed full address operations should always take an extra cycle, but
+    // the reads have been optimized to take only one cycle when the upper address bits remain unchanged.
+
+    if constexpr (WRITE) {
         m_cycles++;
+    } else {
+        if (lo + m_state.x > 0xFF) {
+            // Crossing a page boundry takes an extra internal cycle
+            m_cycles++;
+        }
     }
 
     return value;
 }
 
+template <bool WRITE>
 uint8 Cpu6502::addressModeAbsoluteY()
 {
     const uint8  lo    = readMemory(m_state.pc++);
@@ -385,9 +406,13 @@ uint8 Cpu6502::addressModeAbsoluteY()
     const uint16 addr  = base + m_state.y;
     const uint8  value = readMemory(addr);
 
-    if (lo + m_state.y > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
+    if constexpr (WRITE) {
         m_cycles++;
+    } else {
+        if (lo + m_state.y > 0xFF) {
+            // Crossing a page boundry takes an extra internal cycle
+            m_cycles++;
+        }
     }
 
     return value;
@@ -407,6 +432,7 @@ uint8 Cpu6502::addressModeIndirectX()
     return value;
 }
 
+template <bool WRITE>
 uint8 Cpu6502::addressModeIndirectY()
 {
     uint8        zp    = readMemory(m_state.pc++);
@@ -416,9 +442,13 @@ uint8 Cpu6502::addressModeIndirectY()
     const uint16 addr  = base + m_state.y;
     const uint8  value = readMemory(addr);
 
-    if (lo + m_state.y > 0xFF) {
-        // Crossing a page boundry takes an extra internal cycle
+    if constexpr (WRITE) {
         m_cycles++;
+    } else {
+        if (lo + m_state.y > 0xFF) {
+            // Crossing a page boundry takes an extra internal cycle
+            m_cycles++;
+        }
     }
 
     return value;
@@ -437,15 +467,15 @@ void Cpu6502::opNOP()
     m_cycles++;
 }
 
-void Cpu6502::opADC(const uint8 value)
+void Cpu6502::opADC()
 {
     const uint8  carry = getRegister(C);
-    const uint16 total = m_state.a + value + carry;
+    const uint16 total = m_state.a + m_data + carry;
     const auto   data  = static_cast<uint8>(total);
 
     setRegister(C, total > 0xFF);
     setRegister(Z, !data);
-    setRegister(V, (data ^ m_state.a) & (data ^ value) & 0x80);
+    setRegister(V, (data ^ m_state.a) & (data ^ m_data) & 0x80);
     setRegister(N, data & 0x80);
 
     m_state.a = data;
@@ -453,55 +483,55 @@ void Cpu6502::opADC(const uint8 value)
 
 void Cpu6502::opADC_imm()
 {
-    const uint8 value = addressModeImmediate();
-    opADC(value);
+    addressModeImmediate();
+    opADC();
 }
 
 void Cpu6502::opADC_zp()
 {
-    const uint8 value = addressModeZeroPage();
-    opADC(value);
+    addressModeZeroPage();
+    opADC();
 }
 
 void Cpu6502::opADC_zp_X()
 {
-    const uint8 value = addressModeZeroPageX();
-    opADC(value);
+    addressModeZeroPageX();
+    opADC();
 }
 
 void Cpu6502::opADC_abs()
 {
-    const uint8 value = addressModeAbsolute();
-    opADC(value);
+    addressModeAbsolute();
+    opADC();
 }
 
 void Cpu6502::opADC_abs_X()
 {
-    const uint8 value = addressModeAbsoluteX();
-    opADC(value);
+    addressModeAbsoluteX<false>();
+    opADC();
 }
 
 void Cpu6502::opADC_abs_Y()
 {
-    const uint8 value = addressModeAbsoluteY();
-    opADC(value);
+    addressModeAbsoluteY<false>();
+    opADC();
 }
 
 void Cpu6502::opADC_ind_X()
 {
-    const uint8 value = addressModeIndirectX();
-    opADC(value);
+    addressModeIndirectX();
+    opADC();
 }
 
 void Cpu6502::opADC_ind_Y()
 {
-    const uint8 value = addressModeIndirectY();
-    opADC(value);
+    addressModeIndirectY<false>();
+    opADC();
 }
 
-void Cpu6502::opAND(const uint8 value)
+void Cpu6502::opAND()
 {
-    const uint8 data = m_state.a & value;
+    const uint8 data = m_state.a & m_data;
 
     setRegister(Z, !data);
     setRegister(N, data & 0x80);
@@ -511,50 +541,100 @@ void Cpu6502::opAND(const uint8 value)
 
 void Cpu6502::opAND_imm()
 {
-    const uint8 value = addressModeImmediate();
-    opAND(value);
+    addressModeImmediate();
+    opAND();
 }
 
 void Cpu6502::opAND_zp()
 {
-    const uint8 value = addressModeZeroPage();
-    opAND(value);
+    addressModeZeroPage();
+    opAND();
 }
 
 void Cpu6502::opAND_zp_X()
 {
-    const uint8 value = addressModeZeroPageX();
-    opAND(value);
+    addressModeZeroPageX();
+    opAND();
 }
 
 void Cpu6502::opAND_abs()
 {
-    const uint8 value = addressModeAbsolute();
-    opAND(value);
+    addressModeAbsolute();
+    opAND();
 }
 
 void Cpu6502::opAND_abs_X()
 {
-    const uint8 value = addressModeAbsoluteX();
-    opAND(value);
+    addressModeAbsoluteX<false>();
+    opAND();
 }
 
 void Cpu6502::opAND_abs_Y()
 {
-    const uint8 value = addressModeAbsoluteY();
-    opAND(value);
+    addressModeAbsoluteY<false>();
+    opAND();
 }
 
 void Cpu6502::opAND_ind_X()
 {
-    const uint8 value = addressModeIndirectX();
-    opAND(value);
+    addressModeIndirectX();
+    opAND();
 }
 
 void Cpu6502::opAND_ind_Y()
 {
-    const uint8 value = addressModeIndirectY();
-    opAND(value);
+    addressModeIndirectY<false>();
+    opAND();
+}
+
+void Cpu6502::opASL()
+{
+    const uint16 total = m_data << 1;
+    const auto   data  = static_cast<uint8>(total);
+
+    // ASL takes an extra cycle to complete operation
+    m_cycles++;
+
+    setRegister(C, total & 0x100);
+    setRegister(Z, !data);
+    setRegister(N, data & 0x80);
+
+    m_data = data;
+}
+
+void Cpu6502::opASL_acc()
+{
+    m_data = m_state.a;
+    opASL();
+    m_state.a = m_data;
+}
+
+void Cpu6502::opASL_zp()
+{
+    addressModeZeroPage();
+    opASL();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opASL_zp_X()
+{
+    addressModeZeroPageX();
+    opASL();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opASL_abs()
+{
+    addressModeAbsolute();
+    opASL();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opASL_abs_X()
+{
+    addressModeAbsoluteX<true>();
+    opASL();
+    writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opINX()

@@ -55,19 +55,19 @@ private:
     void               setRegister(const RegisterFlag flag, bool value) { m_state.p = (m_state.p & ~flag) | (-static_cast<uint8>(value) & flag); }
 
     // Addressing modes
-    inline uint8 addressModeImmediate();
-    inline uint8 addressModeZeroPage();
-    inline uint8 addressModeZeroPageX();
-    inline uint8 addressModeAbsolute();
-    inline uint8 addressModeAbsoluteX();
-    inline uint8 addressModeAbsoluteY();
-    inline uint8 addressModeIndirectX();
-    inline uint8 addressModeIndirectY();
+    inline uint8                addressModeImmediate();
+    inline uint8                addressModeZeroPage();
+    inline uint8                addressModeZeroPageX();
+    inline uint8                addressModeAbsolute();
+    template <bool WRITE> uint8 addressModeAbsoluteX();
+    template <bool WRITE> uint8 addressModeAbsoluteY();
+    inline uint8                addressModeIndirectX();
+    template <bool WRITE> uint8 addressModeIndirectY();
 
     // Opcodes
     template <unsigned OP> void opInvalid();
     void                        opNOP();
-    inline void                 opADC(uint8 value);
+    inline void                 opADC();
     void                        opADC_imm();
     void                        opADC_zp();
     void                        opADC_zp_X();
@@ -76,7 +76,7 @@ private:
     void                        opADC_abs_Y();
     void                        opADC_ind_X();
     void                        opADC_ind_Y();
-    void                        opAND(uint8 value);
+    inline void                 opAND();
     void                        opAND_imm();
     void                        opAND_zp();
     void                        opAND_zp_X();
@@ -85,13 +85,24 @@ private:
     void                        opAND_abs_Y();
     void                        opAND_ind_X();
     void                        opAND_ind_Y();
+    inline void                 opASL();
+    void                        opASL_acc();
+    void                        opASL_zp();
+    void                        opASL_zp_X();
+    void                        opASL_abs();
+    void                        opASL_abs_X();
     void                        opINX();
     void                        opINY();
 
-    State         m_state{};
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 
-    uint32 m_cycles = 0;
+    // Observable state
+    State m_state{};
+
+    // Internal state
+    uint16 m_address = 0;
+    uint8  m_data    = 0;
+    uint32 m_cycles  = 0;
 
     Bus& m_bus;
 };

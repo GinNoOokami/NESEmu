@@ -18,7 +18,6 @@ target_sources(NESEmuCoreTests
             include
         FILES
             include/cpu_step_tests.hpp
-            include/opcode_descriptors.hpp
 )
 target_compile_definitions(NESEmuCore PRIVATE RUN_TESTS)
 target_compile_definitions(NESEmuCoreTests PRIVATE RUN_TESTS)
