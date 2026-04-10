@@ -55,7 +55,9 @@ private:
     void               setRegister(const RegisterFlag flag, bool value) { m_state.p = (m_state.p & ~flag) | (-static_cast<uint8>(value) & flag); }
 
     // Addressing modes
+    inline void                 addressModeImplied();
     inline uint8                addressModeImmediate();
+    inline uint8                addressModeRelative();
     inline uint8                addressModeZeroPage();
     inline uint8                addressModeZeroPageX();
     inline uint8                addressModeAbsolute();
@@ -91,6 +93,22 @@ private:
     void                        opASL_zp_X();
     void                        opASL_abs();
     void                        opASL_abs_X();
+    inline void                 opBRC(bool branch);
+    void                        opBCC();
+    void                        opBCS();
+    void                        opBEQ();
+    inline void                 opBIT();
+    void                        opBIT_zp();
+    void                        opBIT_abs();
+    void                        opBMI();
+    void                        opBNE();
+    void                        opBPL();
+    void                        opBVC();
+    void                        opBVS();
+    void                        opCLC();
+    void                        opCLD();
+    void                        opCLI();
+    void                        opCLV();
     void                        opINX();
     void                        opINY();
 

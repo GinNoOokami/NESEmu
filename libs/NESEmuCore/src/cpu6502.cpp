@@ -26,7 +26,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x0E] = &Cpu6502::opASL_abs;
     m_opcodeHandlers[0x0F] = &Cpu6502::opInvalid<0x0F>;
 
-    m_opcodeHandlers[0x10] = &Cpu6502::opInvalid<0x10>;
+    m_opcodeHandlers[0x10] = &Cpu6502::opBPL;
     m_opcodeHandlers[0x11] = &Cpu6502::opInvalid<0x11>;
     m_opcodeHandlers[0x12] = &Cpu6502::opInvalid<0x12>;
     m_opcodeHandlers[0x13] = &Cpu6502::opInvalid<0x13>;
@@ -34,7 +34,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x15] = &Cpu6502::opInvalid<0x15>;
     m_opcodeHandlers[0x16] = &Cpu6502::opASL_zp_X;
     m_opcodeHandlers[0x17] = &Cpu6502::opInvalid<0x17>;
-    m_opcodeHandlers[0x18] = &Cpu6502::opInvalid<0x18>;
+    m_opcodeHandlers[0x18] = &Cpu6502::opCLC;
     m_opcodeHandlers[0x19] = &Cpu6502::opInvalid<0x19>;
     m_opcodeHandlers[0x1A] = &Cpu6502::opInvalid<0x1A>;
     m_opcodeHandlers[0x1B] = &Cpu6502::opInvalid<0x1B>;
@@ -47,7 +47,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x21] = &Cpu6502::opAND_ind_X;
     m_opcodeHandlers[0x22] = &Cpu6502::opInvalid<0x22>;
     m_opcodeHandlers[0x23] = &Cpu6502::opInvalid<0x23>;
-    m_opcodeHandlers[0x24] = &Cpu6502::opInvalid<0x24>;
+    m_opcodeHandlers[0x24] = &Cpu6502::opBIT_zp;
     m_opcodeHandlers[0x25] = &Cpu6502::opAND_zp;
     m_opcodeHandlers[0x26] = &Cpu6502::opInvalid<0x26>;
     m_opcodeHandlers[0x27] = &Cpu6502::opInvalid<0x27>;
@@ -55,12 +55,12 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x29] = &Cpu6502::opAND_imm;
     m_opcodeHandlers[0x2A] = &Cpu6502::opInvalid<0x2A>;
     m_opcodeHandlers[0x2B] = &Cpu6502::opInvalid<0x2B>;
-    m_opcodeHandlers[0x2C] = &Cpu6502::opInvalid<0x2C>;
+    m_opcodeHandlers[0x2C] = &Cpu6502::opBIT_abs;
     m_opcodeHandlers[0x2D] = &Cpu6502::opAND_abs;
     m_opcodeHandlers[0x2E] = &Cpu6502::opInvalid<0x2E>;
     m_opcodeHandlers[0x2F] = &Cpu6502::opInvalid<0x2F>;
 
-    m_opcodeHandlers[0x30] = &Cpu6502::opInvalid<0x30>;
+    m_opcodeHandlers[0x30] = &Cpu6502::opBMI;
     m_opcodeHandlers[0x31] = &Cpu6502::opAND_ind_Y;
     m_opcodeHandlers[0x32] = &Cpu6502::opInvalid<0x32>;
     m_opcodeHandlers[0x33] = &Cpu6502::opInvalid<0x33>;
@@ -94,7 +94,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x4E] = &Cpu6502::opInvalid<0x4E>;
     m_opcodeHandlers[0x4F] = &Cpu6502::opInvalid<0x4F>;
 
-    m_opcodeHandlers[0x50] = &Cpu6502::opInvalid<0x50>;
+    m_opcodeHandlers[0x50] = &Cpu6502::opBVC;
     m_opcodeHandlers[0x51] = &Cpu6502::opInvalid<0x51>;
     m_opcodeHandlers[0x52] = &Cpu6502::opInvalid<0x52>;
     m_opcodeHandlers[0x53] = &Cpu6502::opInvalid<0x53>;
@@ -102,7 +102,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x55] = &Cpu6502::opInvalid<0x55>;
     m_opcodeHandlers[0x56] = &Cpu6502::opInvalid<0x56>;
     m_opcodeHandlers[0x57] = &Cpu6502::opInvalid<0x57>;
-    m_opcodeHandlers[0x58] = &Cpu6502::opInvalid<0x58>;
+    m_opcodeHandlers[0x58] = &Cpu6502::opCLI;
     m_opcodeHandlers[0x59] = &Cpu6502::opInvalid<0x59>;
     m_opcodeHandlers[0x5A] = &Cpu6502::opInvalid<0x5A>;
     m_opcodeHandlers[0x5B] = &Cpu6502::opInvalid<0x5B>;
@@ -128,7 +128,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x6E] = &Cpu6502::opInvalid<0x6E>;
     m_opcodeHandlers[0x6F] = &Cpu6502::opInvalid<0x6F>;
 
-    m_opcodeHandlers[0x70] = &Cpu6502::opInvalid<0x70>;
+    m_opcodeHandlers[0x70] = &Cpu6502::opBVS;
     m_opcodeHandlers[0x71] = &Cpu6502::opADC_ind_Y;
     m_opcodeHandlers[0x72] = &Cpu6502::opInvalid<0x72>;
     m_opcodeHandlers[0x73] = &Cpu6502::opInvalid<0x73>;
@@ -162,7 +162,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x8E] = &Cpu6502::opInvalid<0x8E>;
     m_opcodeHandlers[0x8F] = &Cpu6502::opInvalid<0x8F>;
 
-    m_opcodeHandlers[0x90] = &Cpu6502::opInvalid<0x90>;
+    m_opcodeHandlers[0x90] = &Cpu6502::opBCC;
     m_opcodeHandlers[0x91] = &Cpu6502::opInvalid<0x91>;
     m_opcodeHandlers[0x92] = &Cpu6502::opInvalid<0x92>;
     m_opcodeHandlers[0x93] = &Cpu6502::opInvalid<0x93>;
@@ -196,7 +196,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xAE] = &Cpu6502::opInvalid<0xAE>;
     m_opcodeHandlers[0xAF] = &Cpu6502::opInvalid<0xAF>;
 
-    m_opcodeHandlers[0xB0] = &Cpu6502::opInvalid<0xB0>;
+    m_opcodeHandlers[0xB0] = &Cpu6502::opBCS;
     m_opcodeHandlers[0xB1] = &Cpu6502::opInvalid<0xB1>;
     m_opcodeHandlers[0xB2] = &Cpu6502::opInvalid<0xB2>;
     m_opcodeHandlers[0xB3] = &Cpu6502::opInvalid<0xB3>;
@@ -204,7 +204,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xB5] = &Cpu6502::opInvalid<0xB5>;
     m_opcodeHandlers[0xB6] = &Cpu6502::opInvalid<0xB6>;
     m_opcodeHandlers[0xB7] = &Cpu6502::opInvalid<0xB7>;
-    m_opcodeHandlers[0xB8] = &Cpu6502::opInvalid<0xB8>;
+    m_opcodeHandlers[0xB8] = &Cpu6502::opCLV;
     m_opcodeHandlers[0xB9] = &Cpu6502::opInvalid<0xB9>;
     m_opcodeHandlers[0xBA] = &Cpu6502::opInvalid<0xBA>;
     m_opcodeHandlers[0xBB] = &Cpu6502::opInvalid<0xBB>;
@@ -230,7 +230,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xCE] = &Cpu6502::opInvalid<0xCE>;
     m_opcodeHandlers[0xCF] = &Cpu6502::opInvalid<0xCF>;
 
-    m_opcodeHandlers[0xD0] = &Cpu6502::opInvalid<0xD0>;
+    m_opcodeHandlers[0xD0] = &Cpu6502::opBNE;
     m_opcodeHandlers[0xD1] = &Cpu6502::opInvalid<0xD1>;
     m_opcodeHandlers[0xD2] = &Cpu6502::opInvalid<0xD2>;
     m_opcodeHandlers[0xD3] = &Cpu6502::opInvalid<0xD3>;
@@ -238,7 +238,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xD5] = &Cpu6502::opInvalid<0xD5>;
     m_opcodeHandlers[0xD6] = &Cpu6502::opInvalid<0xD6>;
     m_opcodeHandlers[0xD7] = &Cpu6502::opInvalid<0xD7>;
-    m_opcodeHandlers[0xD8] = &Cpu6502::opInvalid<0xD8>;
+    m_opcodeHandlers[0xD8] = &Cpu6502::opCLD;
     m_opcodeHandlers[0xD9] = &Cpu6502::opInvalid<0xD9>;
     m_opcodeHandlers[0xDA] = &Cpu6502::opInvalid<0xDA>;
     m_opcodeHandlers[0xDB] = &Cpu6502::opInvalid<0xDB>;
@@ -264,7 +264,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xEE] = &Cpu6502::opInvalid<0xEE>;
     m_opcodeHandlers[0xEF] = &Cpu6502::opInvalid<0xEF>;
 
-    m_opcodeHandlers[0xF0] = &Cpu6502::opInvalid<0xF0>;
+    m_opcodeHandlers[0xF0] = &Cpu6502::opBEQ;
     m_opcodeHandlers[0xF1] = &Cpu6502::opInvalid<0xF1>;
     m_opcodeHandlers[0xF2] = &Cpu6502::opInvalid<0xF2>;
     m_opcodeHandlers[0xF3] = &Cpu6502::opInvalid<0xF3>;
@@ -328,7 +328,20 @@ void Cpu6502::writeMemory(const uint16 address, const uint8 value)
     m_bus.write(address, value);
 }
 
+void Cpu6502::addressModeImplied()
+{
+    // implied addressing mode takes an extra cycle
+    m_cycles++;
+}
+
 uint8 Cpu6502::addressModeImmediate()
+{
+    const uint8 value = readMemory(m_state.pc++);
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeRelative()
 {
     const uint8 value = readMemory(m_state.pc++);
 
@@ -637,24 +650,133 @@ void Cpu6502::opASL_abs_X()
     writeMemory(m_address, m_data);
 }
 
+void Cpu6502::opBRC(bool branch)
+{
+    if (branch) {
+        const auto lo     = static_cast<uint8>(m_state.pc);
+        const auto offset = static_cast<sint8>(m_data);
+
+        if (lo + offset & 0xFF00) {
+            // Crossing a page boundry takes an extra internal cycle
+            m_cycles++;
+        }
+
+        // Jump takes a cycle
+        m_cycles++;
+
+        m_state.pc += offset;
+    }
+}
+
+void Cpu6502::opBCC()
+{
+    addressModeRelative();
+    opBRC(!getRegister(C));
+}
+
+void Cpu6502::opBCS()
+{
+    addressModeRelative();
+    opBRC(getRegister(C));
+}
+
+void Cpu6502::opBEQ()
+{
+    addressModeRelative();
+    opBRC(getRegister(Z));
+}
+
+void Cpu6502::opBIT()
+{
+    const uint8 data = m_state.a & m_data;
+
+    setRegister(Z, !data);
+    setRegister(V, m_data & 0x40);
+    setRegister(N, m_data & 0x80);
+}
+
+void Cpu6502::opBIT_zp()
+{
+    addressModeZeroPage();
+    opBIT();
+}
+
+void Cpu6502::opBIT_abs()
+{
+    addressModeAbsolute();
+    opBIT();
+}
+
+void Cpu6502::opBMI()
+{
+    addressModeRelative();
+    opBRC(getRegister(N));
+}
+
+void Cpu6502::opBNE()
+{
+    addressModeRelative();
+    opBRC(!getRegister(Z));
+}
+
+void Cpu6502::opBPL()
+{
+    addressModeRelative();
+    opBRC(!getRegister(N));
+}
+
+void Cpu6502::opBVC()
+{
+    addressModeRelative();
+    opBRC(!getRegister(V));
+}
+
+void Cpu6502::opBVS()
+{
+    addressModeRelative();
+    opBRC(getRegister(V));
+}
+
+void Cpu6502::opCLC()
+{
+    addressModeImplied();
+    setRegister(C, false);
+}
+
+void Cpu6502::opCLD()
+{
+    addressModeImplied();
+    setRegister(D, false);
+}
+
+void Cpu6502::opCLI()
+{
+    addressModeImplied();
+    setRegister(I, false);
+}
+
+void Cpu6502::opCLV()
+{
+    addressModeImplied();
+    setRegister(V, false);
+}
+
 void Cpu6502::opINX()
 {
+    addressModeImplied();
+
     m_state.x++;
 
     setRegister(N, m_state.x & 0x80);
     setRegister(Z, !m_state.x);
-
-    // implied addressing mode takes an extra cycle
-    m_cycles++;
 }
 
 void Cpu6502::opINY()
 {
+    addressModeImplied();
+
     m_state.y++;
 
     setRegister(N, m_state.y & 0x80);
     setRegister(Z, !m_state.y);
-
-    // implied addressing mode takes an extra cycle
-    m_cycles++;
 }
