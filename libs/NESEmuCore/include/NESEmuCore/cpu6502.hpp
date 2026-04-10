@@ -133,6 +133,15 @@ private:
     void                        opDEC_abs_X();
     void                        opDEX();
     void                        opDEY();
+    inline void                 opEOR();
+    void                        opEOR_imm();
+    void                        opEOR_zp();
+    void                        opEOR_zp_X();
+    void                        opEOR_abs();
+    void                        opEOR_abs_X();
+    void                        opEOR_abs_Y();
+    void                        opEOR_ind_X();
+    void                        opEOR_ind_Y();
     void                        opINX();
     void                        opINY();
 
