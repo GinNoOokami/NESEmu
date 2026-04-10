@@ -126,6 +126,13 @@ private:
     void                        opCPY_imm();
     void                        opCPY_zp();
     void                        opCPY_abs();
+    inline void                 opDEC();
+    void                        opDEC_zp();
+    void                        opDEC_zp_X();
+    void                        opDEC_abs();
+    void                        opDEC_abs_X();
+    void                        opDEX();
+    void                        opDEY();
     void                        opINX();
     void                        opINY();
 
