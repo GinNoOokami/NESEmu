@@ -149,6 +149,8 @@ private:
     void                        opINC_abs_X();
     void                        opINX();
     void                        opINY();
+    void                        opJMP_abs();
+    void                        opJMP_ind();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 

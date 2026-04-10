@@ -89,7 +89,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x49] = &Cpu6502::opEOR_imm;
     m_opcodeHandlers[0x4A] = &Cpu6502::opInvalid<0x4A>;
     m_opcodeHandlers[0x4B] = &Cpu6502::opInvalid<0x4B>;
-    m_opcodeHandlers[0x4C] = &Cpu6502::opInvalid<0x4C>;
+    m_opcodeHandlers[0x4C] = &Cpu6502::opJMP_abs;
     m_opcodeHandlers[0x4D] = &Cpu6502::opEOR_abs;
     m_opcodeHandlers[0x4E] = &Cpu6502::opInvalid<0x4E>;
     m_opcodeHandlers[0x4F] = &Cpu6502::opInvalid<0x4F>;
@@ -123,7 +123,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x69] = &Cpu6502::opADC_imm;
     m_opcodeHandlers[0x6A] = &Cpu6502::opInvalid<0x6A>;
     m_opcodeHandlers[0x6B] = &Cpu6502::opInvalid<0x6B>;
-    m_opcodeHandlers[0x6C] = &Cpu6502::opInvalid<0x6C>;
+    m_opcodeHandlers[0x6C] = &Cpu6502::opJMP_ind;
     m_opcodeHandlers[0x6D] = &Cpu6502::opADC_abs;
     m_opcodeHandlers[0x6E] = &Cpu6502::opInvalid<0x6E>;
     m_opcodeHandlers[0x6F] = &Cpu6502::opInvalid<0x6F>;
@@ -1048,4 +1048,27 @@ void Cpu6502::opINY()
 
     setRegister(N, m_state.y & 0x80);
     setRegister(Z, !m_state.y);
+}
+
+void Cpu6502::opJMP_abs()
+{
+    const uint8  lo   = readMemory(m_state.pc++);
+    const uint8  hi   = readMemory(m_state.pc++);
+    const uint16 addr = hi << 8 | lo;
+
+    m_state.pc = addr;
+}
+
+void Cpu6502::opJMP_ind()
+{
+    const uint8  lo  = readMemory(m_state.pc++);
+    const uint8  hi  = readMemory(m_state.pc++);
+    const uint16 ptr = hi << 8 | lo;
+
+    // Be sure to emulate the indirect jump page wrap bug
+    const uint8  plo  = readMemory(ptr);
+    const uint8  phi  = readMemory(hi << 8 | static_cast<uint8>(lo + 1));
+    const uint16 addr = phi << 8 | plo;
+
+    m_state.pc = addr;
 }
