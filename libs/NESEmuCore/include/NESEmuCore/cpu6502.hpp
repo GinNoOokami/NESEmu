@@ -109,6 +109,23 @@ private:
     void                        opCLD();
     void                        opCLI();
     void                        opCLV();
+    inline void                 opCMP();
+    void                        opCMP_imm();
+    void                        opCMP_zp();
+    void                        opCMP_zp_X();
+    void                        opCMP_abs();
+    void                        opCMP_abs_X();
+    void                        opCMP_abs_Y();
+    void                        opCMP_ind_X();
+    void                        opCMP_ind_Y();
+    inline void                 opCPX();
+    void                        opCPX_imm();
+    void                        opCPX_zp();
+    void                        opCPX_abs();
+    inline void                 opCPY();
+    void                        opCPY_imm();
+    void                        opCPY_zp();
+    void                        opCPY_abs();
     void                        opINX();
     void                        opINY();
 
