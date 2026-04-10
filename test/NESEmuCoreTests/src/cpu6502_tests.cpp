@@ -121,9 +121,13 @@ DEFINE_OPCODE_STEP_TEST(0xdd, "$dd CMP (absolute,X)")
 DEFINE_OPCODE_STEP_TEST(0xde, "$de DEC (absolute,X)")
 DEFINE_OPCODE_STEP_TEST(0xe0, "$e0 CPX (immediate)")
 DEFINE_OPCODE_STEP_TEST(0xe4, "$e4 CPX (zero page)")
+DEFINE_OPCODE_STEP_TEST(0xe6, "$e6 INC (zero page)")
 DEFINE_OPCODE_STEP_TEST(0xe8, "$e8 INX (implied)")
 DEFINE_OPCODE_STEP_TEST(0xea, "$ea NOP (implied)")
 DEFINE_OPCODE_STEP_TEST(0xec, "$ec CPX (absolute)")
+DEFINE_OPCODE_STEP_TEST(0xee, "$ee INC (absolute)")
 DEFINE_OPCODE_STEP_TEST(0xf0, "$f0 BEQ (relative)")
+DEFINE_OPCODE_STEP_TEST(0xf6, "$f6 INC (zero page,X)")
+DEFINE_OPCODE_STEP_TEST(0xfe, "$fe INC (absolute,X)")
 
 #undef DEFINE_OPCODE_STEP_TEST

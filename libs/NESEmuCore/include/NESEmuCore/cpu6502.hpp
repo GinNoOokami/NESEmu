@@ -142,6 +142,11 @@ private:
     void                        opEOR_abs_Y();
     void                        opEOR_ind_X();
     void                        opEOR_ind_Y();
+    inline void                 opINC();
+    void                        opINC_zp();
+    void                        opINC_zp_X();
+    void                        opINC_abs();
+    void                        opINC_abs_X();
     void                        opINX();
     void                        opINY();
 

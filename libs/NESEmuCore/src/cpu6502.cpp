@@ -253,7 +253,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xE3] = &Cpu6502::opInvalid<0xE3>;
     m_opcodeHandlers[0xE4] = &Cpu6502::opCPX_zp;
     m_opcodeHandlers[0xE5] = &Cpu6502::opInvalid<0xE5>;
-    m_opcodeHandlers[0xE6] = &Cpu6502::opInvalid<0xE6>;
+    m_opcodeHandlers[0xE6] = &Cpu6502::opINC_zp;
     m_opcodeHandlers[0xE7] = &Cpu6502::opInvalid<0xE7>;
     m_opcodeHandlers[0xE8] = &Cpu6502::opINX;
     m_opcodeHandlers[0xE9] = &Cpu6502::opInvalid<0xE9>;
@@ -261,7 +261,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xEB] = &Cpu6502::opInvalid<0xEB>;
     m_opcodeHandlers[0xEC] = &Cpu6502::opCPX_abs;
     m_opcodeHandlers[0xED] = &Cpu6502::opInvalid<0xED>;
-    m_opcodeHandlers[0xEE] = &Cpu6502::opInvalid<0xEE>;
+    m_opcodeHandlers[0xEE] = &Cpu6502::opINC_abs;
     m_opcodeHandlers[0xEF] = &Cpu6502::opInvalid<0xEF>;
 
     m_opcodeHandlers[0xF0] = &Cpu6502::opBEQ;
@@ -270,7 +270,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xF3] = &Cpu6502::opInvalid<0xF3>;
     m_opcodeHandlers[0xF4] = &Cpu6502::opInvalid<0xF4>;
     m_opcodeHandlers[0xF5] = &Cpu6502::opInvalid<0xF5>;
-    m_opcodeHandlers[0xF6] = &Cpu6502::opInvalid<0xF6>;
+    m_opcodeHandlers[0xF6] = &Cpu6502::opINC_zp_X;
     m_opcodeHandlers[0xF7] = &Cpu6502::opInvalid<0xF7>;
     m_opcodeHandlers[0xF8] = &Cpu6502::opInvalid<0xF8>;
     m_opcodeHandlers[0xF9] = &Cpu6502::opInvalid<0xF9>;
@@ -278,7 +278,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xFB] = &Cpu6502::opInvalid<0xFB>;
     m_opcodeHandlers[0xFC] = &Cpu6502::opInvalid<0xFC>;
     m_opcodeHandlers[0xFD] = &Cpu6502::opInvalid<0xFD>;
-    m_opcodeHandlers[0xFE] = &Cpu6502::opInvalid<0xFE>;
+    m_opcodeHandlers[0xFE] = &Cpu6502::opINC_abs_X;
     m_opcodeHandlers[0xFF] = &Cpu6502::opInvalid<0xFF>;
 }
 
@@ -987,6 +987,47 @@ void Cpu6502::opEOR_ind_Y()
 {
     addressModeIndirectY<false>();
     opEOR();
+}
+
+void Cpu6502::opINC()
+{
+    const uint8 data = m_data + 1;
+
+    // INC takes an extra cycle to complete operation
+    m_cycles++;
+
+    setRegister(Z, !data);
+    setRegister(N, data & 0x80);
+
+    m_data = data;
+}
+
+void Cpu6502::opINC_zp()
+{
+    addressModeZeroPage();
+    opINC();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opINC_zp_X()
+{
+    addressModeZeroPageX();
+    opINC();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opINC_abs()
+{
+    addressModeAbsolute();
+    opINC();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opINC_abs_X()
+{
+    addressModeAbsoluteX<true>();
+    opINC();
+    writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opINX()
