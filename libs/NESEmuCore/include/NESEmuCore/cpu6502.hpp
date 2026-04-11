@@ -74,7 +74,6 @@ private:
 
     // Opcodes
     template <unsigned OP> void opInvalid();
-    void                        opNOP();
     inline void                 opADC();
     void                        opADC_imm();
     void                        opADC_zp();
@@ -179,6 +178,13 @@ private:
     void                        opLDY_zp_X();
     void                        opLDY_abs();
     void                        opLDY_abs_X();
+    inline void                 opLSR();
+    void                        opLSR_acc();
+    void                        opLSR_zp();
+    void                        opLSR_zp_X();
+    void                        opLSR_abs();
+    void                        opLSR_abs_X();
+    void                        opNOP();
     void                        opRTS();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };

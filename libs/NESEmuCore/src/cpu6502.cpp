@@ -83,15 +83,15 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x43] = &Cpu6502::opInvalid<0x43>;
     m_opcodeHandlers[0x44] = &Cpu6502::opInvalid<0x44>;
     m_opcodeHandlers[0x45] = &Cpu6502::opEOR_zp;
-    m_opcodeHandlers[0x46] = &Cpu6502::opInvalid<0x46>;
+    m_opcodeHandlers[0x46] = &Cpu6502::opLSR_zp;
     m_opcodeHandlers[0x47] = &Cpu6502::opInvalid<0x47>;
     m_opcodeHandlers[0x48] = &Cpu6502::opInvalid<0x48>;
     m_opcodeHandlers[0x49] = &Cpu6502::opEOR_imm;
-    m_opcodeHandlers[0x4A] = &Cpu6502::opInvalid<0x4A>;
+    m_opcodeHandlers[0x4A] = &Cpu6502::opLSR_acc;
     m_opcodeHandlers[0x4B] = &Cpu6502::opInvalid<0x4B>;
     m_opcodeHandlers[0x4C] = &Cpu6502::opJMP_abs;
     m_opcodeHandlers[0x4D] = &Cpu6502::opEOR_abs;
-    m_opcodeHandlers[0x4E] = &Cpu6502::opInvalid<0x4E>;
+    m_opcodeHandlers[0x4E] = &Cpu6502::opLSR_abs;
     m_opcodeHandlers[0x4F] = &Cpu6502::opInvalid<0x4F>;
 
     m_opcodeHandlers[0x50] = &Cpu6502::opBVC;
@@ -100,7 +100,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x53] = &Cpu6502::opInvalid<0x53>;
     m_opcodeHandlers[0x54] = &Cpu6502::opInvalid<0x54>;
     m_opcodeHandlers[0x55] = &Cpu6502::opEOR_zp_X;
-    m_opcodeHandlers[0x56] = &Cpu6502::opInvalid<0x56>;
+    m_opcodeHandlers[0x56] = &Cpu6502::opLSR_zp_X;
     m_opcodeHandlers[0x57] = &Cpu6502::opInvalid<0x57>;
     m_opcodeHandlers[0x58] = &Cpu6502::opCLI;
     m_opcodeHandlers[0x59] = &Cpu6502::opEOR_abs_Y;
@@ -108,7 +108,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x5B] = &Cpu6502::opInvalid<0x5B>;
     m_opcodeHandlers[0x5C] = &Cpu6502::opInvalid<0x5C>;
     m_opcodeHandlers[0x5D] = &Cpu6502::opEOR_abs_X;
-    m_opcodeHandlers[0x5E] = &Cpu6502::opInvalid<0x5E>;
+    m_opcodeHandlers[0x5E] = &Cpu6502::opLSR_abs_X;
     m_opcodeHandlers[0x5F] = &Cpu6502::opInvalid<0x5F>;
 
     m_opcodeHandlers[0x60] = &Cpu6502::opRTS;
@@ -496,12 +496,6 @@ void Cpu6502::opInvalid()
 {
     // TODO: Log invalid opcode (and halt execution?)
     throw std::runtime_error("Invalid opcode");
-}
-
-void Cpu6502::opNOP()
-{
-    // NOP has a dummy read which takes an extra cycle
-    m_cycles++;
 }
 
 void Cpu6502::opADC()
@@ -1243,6 +1237,62 @@ void Cpu6502::opLDY_abs_X()
 {
     addressModeAbsoluteX<false>();
     opLDY();
+}
+
+void Cpu6502::opLSR()
+{
+    const uint16 total = m_data >> 1;
+    const auto   data  = static_cast<uint8>(total);
+
+    // LSR takes an extra cycle to complete operation
+    m_cycles++;
+
+    setRegister(C, m_data & 0x01);
+    setRegister(Z, !data);
+    setRegister(N, false);
+
+    m_data = data;
+}
+
+void Cpu6502::opLSR_acc()
+{
+    m_data = m_state.a;
+    opLSR();
+    m_state.a = m_data;
+}
+
+void Cpu6502::opLSR_zp()
+{
+    addressModeZeroPage();
+    opLSR();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opLSR_zp_X()
+{
+    addressModeZeroPageX();
+    opLSR();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opLSR_abs()
+{
+    addressModeAbsolute();
+    opLSR();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opLSR_abs_X()
+{
+    addressModeAbsoluteX<true>();
+    opLSR();
+    writeMemory(m_address, m_data);
+}
+
+void Cpu6502::opNOP()
+{
+    // NOP has a dummy read which takes an extra cycle
+    m_cycles++;
 }
 
 void Cpu6502::opRTS()
