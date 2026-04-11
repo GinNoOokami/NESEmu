@@ -43,7 +43,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x1E] = &Cpu6502::opASL_abs_X;
     m_opcodeHandlers[0x1F] = &Cpu6502::opInvalid<0x1F>;
 
-    m_opcodeHandlers[0x20] = &Cpu6502::opInvalid<0x20>;
+    m_opcodeHandlers[0x20] = &Cpu6502::opJSR;
     m_opcodeHandlers[0x21] = &Cpu6502::opAND_ind_X;
     m_opcodeHandlers[0x22] = &Cpu6502::opInvalid<0x22>;
     m_opcodeHandlers[0x23] = &Cpu6502::opInvalid<0x23>;
@@ -111,7 +111,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x5E] = &Cpu6502::opInvalid<0x5E>;
     m_opcodeHandlers[0x5F] = &Cpu6502::opInvalid<0x5F>;
 
-    m_opcodeHandlers[0x60] = &Cpu6502::opInvalid<0x60>;
+    m_opcodeHandlers[0x60] = &Cpu6502::opRTS;
     m_opcodeHandlers[0x61] = &Cpu6502::opADC_ind_X;
     m_opcodeHandlers[0x62] = &Cpu6502::opInvalid<0x62>;
     m_opcodeHandlers[0x63] = &Cpu6502::opInvalid<0x63>;
@@ -326,6 +326,18 @@ void Cpu6502::writeMemory(const uint16 address, const uint8 value)
     m_address = address;
     m_data    = value;
     m_bus.write(address, value);
+}
+
+void Cpu6502::pushStack(uint8 value)
+{
+    writeMemory(kStackAddr + m_state.sp, value);
+    m_state.sp--;
+}
+
+uint8 Cpu6502::popStack()
+{
+    ++m_state.sp;
+    return readMemory(kStackAddr + m_state.sp);
 }
 
 void Cpu6502::addressModeImplied()
@@ -1071,4 +1083,32 @@ void Cpu6502::opJMP_ind()
     const uint16 addr = phi << 8 | plo;
 
     m_state.pc = addr;
+}
+
+void Cpu6502::opJSR()
+{
+    const uint16 pc   = m_state.pc + 1;
+    const uint8  lo   = readMemory(m_state.pc++);
+    const uint8  hi   = readMemory(m_state.pc++);
+    const uint16 addr = hi << 8 | lo;
+
+    pushStack(static_cast<uint8>(pc >> 8));
+    pushStack(static_cast<uint8>(pc));
+
+    // JSR takes an extra cycle to complete operation
+    m_cycles++;
+
+    m_state.pc = addr;
+}
+
+void Cpu6502::opRTS()
+{
+    const uint8  lo   = popStack();
+    const uint8  hi   = popStack();
+    const uint16 addr = hi << 8 | lo;
+
+    // JSR performs several dummy reads during this instruction
+    m_cycles += 3;
+
+    m_state.pc = addr + 1;
 }

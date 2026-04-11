@@ -11,6 +11,8 @@ class Cpu6502 {
     static constexpr uint16 kVecReset = 0xFFFC;
     static constexpr uint16 kVecIrq   = 0xFFFE;
 
+    static constexpr uint16 kStackAddr = 0x0100;
+
 public:
     enum RegisterFlag {
         C = 1 << 0, // Carry
@@ -25,7 +27,7 @@ public:
 
     struct State {
         uint16 pc;
-        uint16 sp;
+        uint8  sp;
         uint8  a;
         uint8  x;
         uint8  y;
@@ -53,6 +55,9 @@ private:
 
     [[nodiscard]] bool getRegister(const RegisterFlag flag) const { return m_state.p & flag; }
     void               setRegister(const RegisterFlag flag, bool value) { m_state.p = (m_state.p & ~flag) | (-static_cast<uint8>(value) & flag); }
+
+    inline void  pushStack(uint8 value);
+    inline uint8 popStack();
 
     // Addressing modes
     inline void                 addressModeImplied();
@@ -151,6 +156,8 @@ private:
     void                        opINY();
     void                        opJMP_abs();
     void                        opJMP_ind();
+    void                        opJSR();
+    void                        opRTS();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 
