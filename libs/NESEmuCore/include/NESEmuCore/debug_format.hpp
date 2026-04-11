@@ -24,7 +24,7 @@ inline std::string formatFlags(uint8_t p)
     return std::string{
         p & Cpu6502::RegisterFlag::N ? 'N' : '.',
         p & Cpu6502::RegisterFlag::V ? 'V' : '.',
-        '-',
+        p & Cpu6502::RegisterFlag::U ? '-' : '.',
         p & Cpu6502::RegisterFlag::B ? 'B' : '.',
         p & Cpu6502::RegisterFlag::D ? 'D' : '.',
         p & Cpu6502::RegisterFlag::I ? 'I' : '.',

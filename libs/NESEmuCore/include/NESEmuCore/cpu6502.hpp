@@ -194,6 +194,10 @@ private:
     void                        opORA_abs_Y();
     void                        opORA_ind_X();
     void                        opORA_ind_Y();
+    void                        opPHA();
+    void                        opPHP();
+    void                        opPLA();
+    void                        opPLP();
     void                        opRTS();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };

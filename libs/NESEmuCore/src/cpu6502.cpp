@@ -17,7 +17,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x05] = &Cpu6502::opORA_zp;
     m_opcodeHandlers[0x06] = &Cpu6502::opASL_zp;
     m_opcodeHandlers[0x07] = &Cpu6502::opInvalid<0x07>;
-    m_opcodeHandlers[0x08] = &Cpu6502::opInvalid<0x08>;
+    m_opcodeHandlers[0x08] = &Cpu6502::opPHP;
     m_opcodeHandlers[0x09] = &Cpu6502::opORA_imm;
     m_opcodeHandlers[0x0A] = &Cpu6502::opASL_acc;
     m_opcodeHandlers[0x0B] = &Cpu6502::opInvalid<0x0B>;
@@ -51,7 +51,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x25] = &Cpu6502::opAND_zp;
     m_opcodeHandlers[0x26] = &Cpu6502::opInvalid<0x26>;
     m_opcodeHandlers[0x27] = &Cpu6502::opInvalid<0x27>;
-    m_opcodeHandlers[0x28] = &Cpu6502::opInvalid<0x28>;
+    m_opcodeHandlers[0x28] = &Cpu6502::opPLP;
     m_opcodeHandlers[0x29] = &Cpu6502::opAND_imm;
     m_opcodeHandlers[0x2A] = &Cpu6502::opInvalid<0x2A>;
     m_opcodeHandlers[0x2B] = &Cpu6502::opInvalid<0x2B>;
@@ -85,7 +85,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x45] = &Cpu6502::opEOR_zp;
     m_opcodeHandlers[0x46] = &Cpu6502::opLSR_zp;
     m_opcodeHandlers[0x47] = &Cpu6502::opInvalid<0x47>;
-    m_opcodeHandlers[0x48] = &Cpu6502::opInvalid<0x48>;
+    m_opcodeHandlers[0x48] = &Cpu6502::opPHA;
     m_opcodeHandlers[0x49] = &Cpu6502::opEOR_imm;
     m_opcodeHandlers[0x4A] = &Cpu6502::opLSR_acc;
     m_opcodeHandlers[0x4B] = &Cpu6502::opInvalid<0x4B>;
@@ -119,7 +119,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x65] = &Cpu6502::opADC_zp;
     m_opcodeHandlers[0x66] = &Cpu6502::opInvalid<0x66>;
     m_opcodeHandlers[0x67] = &Cpu6502::opInvalid<0x67>;
-    m_opcodeHandlers[0x68] = &Cpu6502::opInvalid<0x68>;
+    m_opcodeHandlers[0x68] = &Cpu6502::opPLA;
     m_opcodeHandlers[0x69] = &Cpu6502::opADC_imm;
     m_opcodeHandlers[0x6A] = &Cpu6502::opInvalid<0x6A>;
     m_opcodeHandlers[0x6B] = &Cpu6502::opInvalid<0x6B>;
@@ -1349,6 +1349,45 @@ void Cpu6502::opORA_ind_Y()
 {
     addressModeIndirectY<false>();
     opORA();
+}
+
+void Cpu6502::opPHA()
+{
+    addressModeImplied();
+    pushStack(m_state.a);
+}
+
+void Cpu6502::opPHP()
+{
+    const uint8 p = m_state.p | B;
+
+    addressModeImplied();
+    pushStack(p);
+}
+
+void Cpu6502::opPLA()
+{
+    addressModeImplied();
+
+    // PLA takes an extra cycle
+    m_cycles++;
+
+    m_state.a = popStack();
+
+    setRegister(Z, !m_state.a);
+    setRegister(N, m_state.a & 0x80);
+}
+
+void Cpu6502::opPLP()
+{
+    const uint8 p = popStack() & 0b11001111;
+
+    addressModeImplied();
+
+    // PLA takes an extra cycle
+    m_cycles++;
+
+    m_state.p = p | U;
 }
 
 void Cpu6502::opRTS()
