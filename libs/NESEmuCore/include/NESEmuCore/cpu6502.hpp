@@ -185,6 +185,15 @@ private:
     void                        opLSR_abs();
     void                        opLSR_abs_X();
     void                        opNOP();
+    inline void                 opORA();
+    void                        opORA_imm();
+    void                        opORA_zp();
+    void                        opORA_zp_X();
+    void                        opORA_abs();
+    void                        opORA_abs_X();
+    void                        opORA_abs_Y();
+    void                        opORA_ind_X();
+    void                        opORA_ind_Y();
     void                        opRTS();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };

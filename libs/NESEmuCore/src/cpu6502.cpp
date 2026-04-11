@@ -10,36 +10,36 @@ Cpu6502::Cpu6502(Bus& bus)
     : m_bus(bus)
 {
     m_opcodeHandlers[0x00] = &Cpu6502::opInvalid<0x00>;
-    m_opcodeHandlers[0x01] = &Cpu6502::opInvalid<0x01>;
+    m_opcodeHandlers[0x01] = &Cpu6502::opORA_ind_X;
     m_opcodeHandlers[0x02] = &Cpu6502::opInvalid<0x02>;
     m_opcodeHandlers[0x03] = &Cpu6502::opInvalid<0x03>;
     m_opcodeHandlers[0x04] = &Cpu6502::opInvalid<0x04>;
-    m_opcodeHandlers[0x05] = &Cpu6502::opInvalid<0x05>;
+    m_opcodeHandlers[0x05] = &Cpu6502::opORA_zp;
     m_opcodeHandlers[0x06] = &Cpu6502::opASL_zp;
     m_opcodeHandlers[0x07] = &Cpu6502::opInvalid<0x07>;
     m_opcodeHandlers[0x08] = &Cpu6502::opInvalid<0x08>;
-    m_opcodeHandlers[0x09] = &Cpu6502::opInvalid<0x09>;
+    m_opcodeHandlers[0x09] = &Cpu6502::opORA_imm;
     m_opcodeHandlers[0x0A] = &Cpu6502::opASL_acc;
     m_opcodeHandlers[0x0B] = &Cpu6502::opInvalid<0x0B>;
     m_opcodeHandlers[0x0C] = &Cpu6502::opInvalid<0x0C>;
-    m_opcodeHandlers[0x0D] = &Cpu6502::opInvalid<0x0D>;
+    m_opcodeHandlers[0x0D] = &Cpu6502::opORA_abs;
     m_opcodeHandlers[0x0E] = &Cpu6502::opASL_abs;
     m_opcodeHandlers[0x0F] = &Cpu6502::opInvalid<0x0F>;
 
     m_opcodeHandlers[0x10] = &Cpu6502::opBPL;
-    m_opcodeHandlers[0x11] = &Cpu6502::opInvalid<0x11>;
+    m_opcodeHandlers[0x11] = &Cpu6502::opORA_ind_Y;
     m_opcodeHandlers[0x12] = &Cpu6502::opInvalid<0x12>;
     m_opcodeHandlers[0x13] = &Cpu6502::opInvalid<0x13>;
     m_opcodeHandlers[0x14] = &Cpu6502::opInvalid<0x14>;
-    m_opcodeHandlers[0x15] = &Cpu6502::opInvalid<0x15>;
+    m_opcodeHandlers[0x15] = &Cpu6502::opORA_zp_X;
     m_opcodeHandlers[0x16] = &Cpu6502::opASL_zp_X;
     m_opcodeHandlers[0x17] = &Cpu6502::opInvalid<0x17>;
     m_opcodeHandlers[0x18] = &Cpu6502::opCLC;
-    m_opcodeHandlers[0x19] = &Cpu6502::opInvalid<0x19>;
+    m_opcodeHandlers[0x19] = &Cpu6502::opORA_abs_Y;
     m_opcodeHandlers[0x1A] = &Cpu6502::opInvalid<0x1A>;
     m_opcodeHandlers[0x1B] = &Cpu6502::opInvalid<0x1B>;
     m_opcodeHandlers[0x1C] = &Cpu6502::opInvalid<0x1C>;
-    m_opcodeHandlers[0x1D] = &Cpu6502::opInvalid<0x1D>;
+    m_opcodeHandlers[0x1D] = &Cpu6502::opORA_abs_X;
     m_opcodeHandlers[0x1E] = &Cpu6502::opASL_abs_X;
     m_opcodeHandlers[0x1F] = &Cpu6502::opInvalid<0x1F>;
 
@@ -1293,6 +1293,62 @@ void Cpu6502::opNOP()
 {
     // NOP has a dummy read which takes an extra cycle
     m_cycles++;
+}
+
+void Cpu6502::opORA()
+{
+    m_state.a |= m_data;
+
+    setRegister(Z, !m_state.a);
+    setRegister(N, m_state.a & 0x80);
+}
+
+void Cpu6502::opORA_imm()
+{
+    addressModeImmediate();
+    opORA();
+}
+
+void Cpu6502::opORA_zp()
+{
+    addressModeZeroPage();
+    opORA();
+}
+
+void Cpu6502::opORA_zp_X()
+{
+    addressModeZeroPageX();
+    opORA();
+}
+
+void Cpu6502::opORA_abs()
+{
+    addressModeAbsolute();
+    opORA();
+}
+
+void Cpu6502::opORA_abs_X()
+{
+    addressModeAbsoluteX<false>();
+    opORA();
+}
+
+void Cpu6502::opORA_abs_Y()
+{
+    addressModeAbsoluteY<false>();
+    opORA();
+}
+
+void Cpu6502::opORA_ind_X()
+{
+    addressModeIndirectX();
+    opORA();
+}
+
+void Cpu6502::opORA_ind_Y()
+{
+    addressModeIndirectY<false>();
+    opORA();
 }
 
 void Cpu6502::opRTS()

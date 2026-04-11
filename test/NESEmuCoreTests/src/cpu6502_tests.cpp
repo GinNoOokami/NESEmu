@@ -61,12 +61,20 @@ TEST_CASE(descriptionText)                                          \
     runOpcodeStepTests(opcodeValue, descriptionText);               \
 }
 
+DEFINE_OPCODE_STEP_TEST(0x01, "$01 ORA (indirect,X)")
+DEFINE_OPCODE_STEP_TEST(0x05, "$05 ORA (zero page)")
 DEFINE_OPCODE_STEP_TEST(0x06, "$06 ASL (zero page)")
+DEFINE_OPCODE_STEP_TEST(0x09, "$09 ORA (immediate)")
 DEFINE_OPCODE_STEP_TEST(0x0a, "$0a ASL (accumulator)")
+DEFINE_OPCODE_STEP_TEST(0x0d, "$0d ORA (absolute)")
 DEFINE_OPCODE_STEP_TEST(0x0e, "$0e ASL (absolute)")
 DEFINE_OPCODE_STEP_TEST(0x10, "$10 BPL (relative)")
+DEFINE_OPCODE_STEP_TEST(0x11, "$11 ORA (indirect,Y)")
+DEFINE_OPCODE_STEP_TEST(0x15, "$15 ORA (zero page,X)")
 DEFINE_OPCODE_STEP_TEST(0x16, "$16 ASL (zero page,X)")
 DEFINE_OPCODE_STEP_TEST(0x18, "$18 CLC (implied)")
+DEFINE_OPCODE_STEP_TEST(0x19, "$19 ORA (absolute,Y)")
+DEFINE_OPCODE_STEP_TEST(0x1d, "$1d ORA (absolute,X)")
 DEFINE_OPCODE_STEP_TEST(0x1e, "$1e ASL (absolute,X)")
 DEFINE_OPCODE_STEP_TEST(0x20, "$20 JSR (absolute)")
 DEFINE_OPCODE_STEP_TEST(0x21, "$21 AND (indirect,X)")
