@@ -65,6 +65,7 @@ private:
     inline uint8                addressModeRelative();
     inline uint8                addressModeZeroPage();
     inline uint8                addressModeZeroPageX();
+    inline uint8                addressModeZeroPageY();
     inline uint8                addressModeAbsolute();
     template <bool WRITE> uint8 addressModeAbsoluteX();
     template <bool WRITE> uint8 addressModeAbsoluteY();
@@ -157,6 +158,27 @@ private:
     void                        opJMP_abs();
     void                        opJMP_ind();
     void                        opJSR();
+    inline void                 opLDA();
+    void                        opLDA_imm();
+    void                        opLDA_zp();
+    void                        opLDA_zp_X();
+    void                        opLDA_abs();
+    void                        opLDA_abs_X();
+    void                        opLDA_abs_Y();
+    void                        opLDA_ind_X();
+    void                        opLDA_ind_Y();
+    inline void                 opLDX();
+    void                        opLDX_imm();
+    void                        opLDX_zp();
+    void                        opLDX_zp_Y();
+    void                        opLDX_abs();
+    void                        opLDX_abs_Y();
+    inline void                 opLDY();
+    void                        opLDY_imm();
+    void                        opLDY_zp();
+    void                        opLDY_zp_X();
+    void                        opLDY_abs();
+    void                        opLDY_abs_X();
     void                        opRTS();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };

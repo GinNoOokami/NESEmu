@@ -179,38 +179,38 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x9E] = &Cpu6502::opInvalid<0x9E>;
     m_opcodeHandlers[0x9F] = &Cpu6502::opInvalid<0x9F>;
 
-    m_opcodeHandlers[0xA0] = &Cpu6502::opInvalid<0xA0>;
-    m_opcodeHandlers[0xA1] = &Cpu6502::opInvalid<0xA1>;
-    m_opcodeHandlers[0xA2] = &Cpu6502::opInvalid<0xA2>;
+    m_opcodeHandlers[0xA0] = &Cpu6502::opLDY_imm;
+    m_opcodeHandlers[0xA1] = &Cpu6502::opLDA_ind_X;
+    m_opcodeHandlers[0xA2] = &Cpu6502::opLDX_imm;
     m_opcodeHandlers[0xA3] = &Cpu6502::opInvalid<0xA3>;
-    m_opcodeHandlers[0xA4] = &Cpu6502::opInvalid<0xA4>;
-    m_opcodeHandlers[0xA5] = &Cpu6502::opInvalid<0xA5>;
-    m_opcodeHandlers[0xA6] = &Cpu6502::opInvalid<0xA6>;
+    m_opcodeHandlers[0xA4] = &Cpu6502::opLDY_zp;
+    m_opcodeHandlers[0xA5] = &Cpu6502::opLDA_zp;
+    m_opcodeHandlers[0xA6] = &Cpu6502::opLDX_zp;
     m_opcodeHandlers[0xA7] = &Cpu6502::opInvalid<0xA7>;
     m_opcodeHandlers[0xA8] = &Cpu6502::opInvalid<0xA8>;
-    m_opcodeHandlers[0xA9] = &Cpu6502::opInvalid<0xA9>;
+    m_opcodeHandlers[0xA9] = &Cpu6502::opLDA_imm;
     m_opcodeHandlers[0xAA] = &Cpu6502::opInvalid<0xAA>;
     m_opcodeHandlers[0xAB] = &Cpu6502::opInvalid<0xAB>;
-    m_opcodeHandlers[0xAC] = &Cpu6502::opInvalid<0xAC>;
-    m_opcodeHandlers[0xAD] = &Cpu6502::opInvalid<0xAD>;
-    m_opcodeHandlers[0xAE] = &Cpu6502::opInvalid<0xAE>;
+    m_opcodeHandlers[0xAC] = &Cpu6502::opLDY_abs;
+    m_opcodeHandlers[0xAD] = &Cpu6502::opLDA_abs;
+    m_opcodeHandlers[0xAE] = &Cpu6502::opLDX_abs;
     m_opcodeHandlers[0xAF] = &Cpu6502::opInvalid<0xAF>;
 
     m_opcodeHandlers[0xB0] = &Cpu6502::opBCS;
-    m_opcodeHandlers[0xB1] = &Cpu6502::opInvalid<0xB1>;
+    m_opcodeHandlers[0xB1] = &Cpu6502::opLDA_ind_Y;
     m_opcodeHandlers[0xB2] = &Cpu6502::opInvalid<0xB2>;
     m_opcodeHandlers[0xB3] = &Cpu6502::opInvalid<0xB3>;
-    m_opcodeHandlers[0xB4] = &Cpu6502::opInvalid<0xB4>;
-    m_opcodeHandlers[0xB5] = &Cpu6502::opInvalid<0xB5>;
-    m_opcodeHandlers[0xB6] = &Cpu6502::opInvalid<0xB6>;
+    m_opcodeHandlers[0xB4] = &Cpu6502::opLDY_zp_X;
+    m_opcodeHandlers[0xB5] = &Cpu6502::opLDA_zp_X;
+    m_opcodeHandlers[0xB6] = &Cpu6502::opLDX_zp_Y;
     m_opcodeHandlers[0xB7] = &Cpu6502::opInvalid<0xB7>;
     m_opcodeHandlers[0xB8] = &Cpu6502::opCLV;
-    m_opcodeHandlers[0xB9] = &Cpu6502::opInvalid<0xB9>;
+    m_opcodeHandlers[0xB9] = &Cpu6502::opLDA_abs_Y;
     m_opcodeHandlers[0xBA] = &Cpu6502::opInvalid<0xBA>;
     m_opcodeHandlers[0xBB] = &Cpu6502::opInvalid<0xBB>;
-    m_opcodeHandlers[0xBC] = &Cpu6502::opInvalid<0xBC>;
-    m_opcodeHandlers[0xBD] = &Cpu6502::opInvalid<0xBD>;
-    m_opcodeHandlers[0xBE] = &Cpu6502::opInvalid<0xBE>;
+    m_opcodeHandlers[0xBC] = &Cpu6502::opLDY_abs_X;
+    m_opcodeHandlers[0xBD] = &Cpu6502::opLDA_abs_X;
+    m_opcodeHandlers[0xBE] = &Cpu6502::opLDX_abs_Y;
     m_opcodeHandlers[0xBF] = &Cpu6502::opInvalid<0xBF>;
 
     m_opcodeHandlers[0xC0] = &Cpu6502::opCPY_imm;
@@ -371,6 +371,18 @@ uint8 Cpu6502::addressModeZeroPage()
 uint8 Cpu6502::addressModeZeroPageX()
 {
     const uint8 zp    = readMemory(m_state.pc++) + m_state.x;
+    const uint8 value = readMemory(zp);
+
+    // Zero page indexing takes an extra internal cycle, so the ALU
+    // has time to add the value of the register to the base address
+    m_cycles++;
+
+    return value;
+}
+
+uint8 Cpu6502::addressModeZeroPageY()
+{
+    const uint8 zp    = readMemory(m_state.pc++) + m_state.y;
     const uint8 value = readMemory(zp);
 
     // Zero page indexing takes an extra internal cycle, so the ALU
@@ -1101,6 +1113,138 @@ void Cpu6502::opJSR()
     m_state.pc = addr;
 }
 
+void Cpu6502::opLDA()
+{
+    m_state.a = m_data;
+
+    setRegister(Z, !m_state.a);
+    setRegister(N, m_state.a & 0x80);
+}
+
+void Cpu6502::opLDA_imm()
+{
+    addressModeImmediate();
+    opLDA();
+}
+
+void Cpu6502::opLDA_zp()
+{
+    addressModeZeroPage();
+    opLDA();
+}
+
+void Cpu6502::opLDA_zp_X()
+{
+    addressModeZeroPageX();
+    opLDA();
+}
+
+void Cpu6502::opLDA_abs()
+{
+    addressModeAbsolute();
+    opLDA();
+}
+
+void Cpu6502::opLDA_abs_X()
+{
+    addressModeAbsoluteX<false>();
+    opLDA();
+}
+
+void Cpu6502::opLDA_abs_Y()
+{
+    addressModeAbsoluteY<false>();
+    opLDA();
+}
+
+void Cpu6502::opLDA_ind_X()
+{
+    addressModeIndirectX();
+    opLDA();
+}
+
+void Cpu6502::opLDA_ind_Y()
+{
+    addressModeIndirectY<false>();
+    opLDA();
+}
+
+void Cpu6502::opLDX()
+{
+    m_state.x = m_data;
+
+    setRegister(Z, !m_state.x);
+    setRegister(N, m_state.x & 0x80);
+}
+
+void Cpu6502::opLDX_imm()
+{
+    addressModeImmediate();
+    opLDX();
+}
+
+void Cpu6502::opLDX_zp()
+{
+    addressModeZeroPage();
+    opLDX();
+}
+
+void Cpu6502::opLDX_zp_Y()
+{
+    addressModeZeroPageY();
+    opLDX();
+}
+
+void Cpu6502::opLDX_abs()
+{
+    addressModeAbsolute();
+    opLDX();
+}
+
+void Cpu6502::opLDX_abs_Y()
+{
+    addressModeAbsoluteY<false>();
+    opLDX();
+}
+
+void Cpu6502::opLDY()
+{
+    m_state.y = m_data;
+
+    setRegister(Z, !m_state.y);
+    setRegister(N, m_state.y & 0x80);
+}
+
+void Cpu6502::opLDY_imm()
+{
+    addressModeImmediate();
+    opLDY();
+}
+
+void Cpu6502::opLDY_zp()
+{
+    addressModeZeroPage();
+    opLDY();
+}
+
+void Cpu6502::opLDY_zp_X()
+{
+    addressModeZeroPageX();
+    opLDY();
+}
+
+void Cpu6502::opLDY_abs()
+{
+    addressModeAbsolute();
+    opLDY();
+}
+
+void Cpu6502::opLDY_abs_X()
+{
+    addressModeAbsoluteX<false>();
+    opLDY();
+}
+
 void Cpu6502::opRTS()
 {
     const uint8  lo   = popStack();
@@ -1108,6 +1252,16 @@ void Cpu6502::opRTS()
     const uint16 addr = hi << 8 | lo;
 
     // JSR performs several dummy reads during this instruction
+    // An interesting discussion that outlines exactly why this
+    // takes 6 cycles despite seemingly few memory operations
+    // https://6502.org/forum/viewtopic.php?f=2&t=5146
+
+    // Cycle 1: fetch RTS - the CPU can't do anything else as it hasn't seen the instruction
+    // Cycle 2: fetch possible operand, as it always does, and must, because it hasn't had time to decode the instruction. But it does send SP to the ALU, and also to the address bus
+    // Cycle 3: SP to address bus, read the empty byte below the stack, not useful but it has to do something. ALU performs the increment for the next cycle
+    // Cycle 4: SP+1 to address bus, reading PC-1 low byte, will be directed to ALU. ALU performs another increment
+    // Cycle 5: SP+2 to address bus from the ALU, also updates the value of SP. ALU performs a NOP with PC-1 low byte, PC-1 high byte is read
+    // Cycle 6: PC is updated with PC-1, new PC sent to address bus, byte before destination is read because something has to happen, PC will be incremented as usual
     m_cycles += 3;
 
     m_state.pc = addr + 1;
