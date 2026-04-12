@@ -146,36 +146,36 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x7F] = &Cpu6502::opInvalid<0x7F>;
 
     m_opcodeHandlers[0x80] = &Cpu6502::opInvalid<0x80>;
-    m_opcodeHandlers[0x81] = &Cpu6502::opInvalid<0x81>;
+    m_opcodeHandlers[0x81] = &Cpu6502::opSTA_ind_X;
     m_opcodeHandlers[0x82] = &Cpu6502::opInvalid<0x82>;
     m_opcodeHandlers[0x83] = &Cpu6502::opInvalid<0x83>;
-    m_opcodeHandlers[0x84] = &Cpu6502::opInvalid<0x84>;
-    m_opcodeHandlers[0x85] = &Cpu6502::opInvalid<0x85>;
-    m_opcodeHandlers[0x86] = &Cpu6502::opInvalid<0x86>;
+    m_opcodeHandlers[0x84] = &Cpu6502::opSTY_zp;
+    m_opcodeHandlers[0x85] = &Cpu6502::opSTA_zp;
+    m_opcodeHandlers[0x86] = &Cpu6502::opSTX_zp;
     m_opcodeHandlers[0x87] = &Cpu6502::opInvalid<0x87>;
     m_opcodeHandlers[0x88] = &Cpu6502::opDEY;
     m_opcodeHandlers[0x89] = &Cpu6502::opInvalid<0x89>;
     m_opcodeHandlers[0x8A] = &Cpu6502::opInvalid<0x8A>;
     m_opcodeHandlers[0x8B] = &Cpu6502::opInvalid<0x8B>;
-    m_opcodeHandlers[0x8C] = &Cpu6502::opInvalid<0x8C>;
-    m_opcodeHandlers[0x8D] = &Cpu6502::opInvalid<0x8D>;
-    m_opcodeHandlers[0x8E] = &Cpu6502::opInvalid<0x8E>;
+    m_opcodeHandlers[0x8C] = &Cpu6502::opSTY_abs;
+    m_opcodeHandlers[0x8D] = &Cpu6502::opSTA_abs;
+    m_opcodeHandlers[0x8E] = &Cpu6502::opSTX_abs;
     m_opcodeHandlers[0x8F] = &Cpu6502::opInvalid<0x8F>;
 
     m_opcodeHandlers[0x90] = &Cpu6502::opBCC;
-    m_opcodeHandlers[0x91] = &Cpu6502::opInvalid<0x91>;
+    m_opcodeHandlers[0x91] = &Cpu6502::opSTA_ind_Y;
     m_opcodeHandlers[0x92] = &Cpu6502::opInvalid<0x92>;
     m_opcodeHandlers[0x93] = &Cpu6502::opInvalid<0x93>;
-    m_opcodeHandlers[0x94] = &Cpu6502::opInvalid<0x94>;
-    m_opcodeHandlers[0x95] = &Cpu6502::opInvalid<0x95>;
-    m_opcodeHandlers[0x96] = &Cpu6502::opInvalid<0x96>;
+    m_opcodeHandlers[0x94] = &Cpu6502::opSTY_zp_X;
+    m_opcodeHandlers[0x95] = &Cpu6502::opSTA_zp_X;
+    m_opcodeHandlers[0x96] = &Cpu6502::opSTX_zp_Y;
     m_opcodeHandlers[0x97] = &Cpu6502::opInvalid<0x97>;
     m_opcodeHandlers[0x98] = &Cpu6502::opInvalid<0x98>;
-    m_opcodeHandlers[0x99] = &Cpu6502::opInvalid<0x99>;
+    m_opcodeHandlers[0x99] = &Cpu6502::opSTA_abs_Y;
     m_opcodeHandlers[0x9A] = &Cpu6502::opInvalid<0x9A>;
     m_opcodeHandlers[0x9B] = &Cpu6502::opInvalid<0x9B>;
     m_opcodeHandlers[0x9C] = &Cpu6502::opInvalid<0x9C>;
-    m_opcodeHandlers[0x9D] = &Cpu6502::opInvalid<0x9D>;
+    m_opcodeHandlers[0x9D] = &Cpu6502::opSTA_abs_X;
     m_opcodeHandlers[0x9E] = &Cpu6502::opInvalid<0x9E>;
     m_opcodeHandlers[0x9F] = &Cpu6502::opInvalid<0x9F>;
 
@@ -346,70 +346,73 @@ void Cpu6502::addressModeImplied()
     m_cycles++;
 }
 
-uint8 Cpu6502::addressModeImmediate()
+void Cpu6502::addressModeImmediate()
 {
-    const uint8 value = readMemory(m_state.pc++);
-
-    return value;
+    readMemory(m_state.pc++);
 }
 
-uint8 Cpu6502::addressModeRelative()
+void Cpu6502::addressModeRelative()
 {
-    const uint8 value = readMemory(m_state.pc++);
-
-    return value;
+    readMemory(m_state.pc++);
 }
 
-uint8 Cpu6502::addressModeZeroPage()
+template <int MODE>
+void Cpu6502::addressModeZeroPage()
 {
-    const uint8 zp    = readMemory(m_state.pc++);
-    const uint8 value = readMemory(zp);
+    m_address = readMemory(m_state.pc++);
 
-    return value;
+    if constexpr (kModeReadOnly == MODE) {
+        readMemory(m_address);
+    }
 }
 
-uint8 Cpu6502::addressModeZeroPageX()
+template <int MODE>
+void Cpu6502::addressModeZeroPageX()
 {
-    const uint8 zp    = readMemory(m_state.pc++) + m_state.x;
-    const uint8 value = readMemory(zp);
+    m_address = static_cast<uint8>(readMemory(m_state.pc++) + m_state.x);
+
+    if constexpr (kModeWriteOnly != MODE) {
+        readMemory(m_address);
+    }
 
     // Zero page indexing takes an extra internal cycle, so the ALU
     // has time to add the value of the register to the base address
     m_cycles++;
-
-    return value;
 }
 
-uint8 Cpu6502::addressModeZeroPageY()
+template <int MODE>
+void Cpu6502::addressModeZeroPageY()
 {
-    const uint8 zp    = readMemory(m_state.pc++) + m_state.y;
-    const uint8 value = readMemory(zp);
+    m_address = static_cast<uint8>(readMemory(m_state.pc++) + m_state.y);
+
+    if constexpr (kModeWriteOnly != MODE) {
+        readMemory(m_address);
+    }
 
     // Zero page indexing takes an extra internal cycle, so the ALU
     // has time to add the value of the register to the base address
     m_cycles++;
-
-    return value;
 }
 
-uint8 Cpu6502::addressModeAbsolute()
+template <int MODE>
+void Cpu6502::addressModeAbsolute()
 {
-    const uint8  lo    = readMemory(m_state.pc++);
-    const uint8  hi    = readMemory(m_state.pc++);
-    const uint16 addr  = hi << 8 | lo;
-    const uint8  value = readMemory(addr);
+    const uint8 lo = readMemory(m_state.pc++);
+    const uint8 hi = readMemory(m_state.pc++);
+    m_address      = hi << 8 | lo;
 
-    return value;
+    if constexpr (kModeWriteOnly != MODE) {
+        readMemory(m_address);
+    }
 }
 
-template <bool WRITE>
-uint8 Cpu6502::addressModeAbsoluteX()
+template <int MODE>
+void Cpu6502::addressModeAbsoluteX()
 {
-    const uint8  lo    = readMemory(m_state.pc++);
-    const uint8  hi    = readMemory(m_state.pc++);
-    const uint16 base  = hi << 8 | lo;
-    const uint16 addr  = base + m_state.x;
-    const uint8  value = readMemory(addr);
+    const uint8  lo   = readMemory(m_state.pc++);
+    const uint8  hi   = readMemory(m_state.pc++);
+    const uint16 base = hi << 8 | lo;
+    m_address         = base + m_state.x;
 
     // A note on the extra cycle taken when crossing a page boundry:
     // https://retrocomputing.stackexchange.com/a/15623
@@ -422,73 +425,84 @@ uint8 Cpu6502::addressModeAbsoluteX()
     // To summarize, these indexed full address operations should always take an extra cycle, but
     // the reads have been optimized to take only one cycle when the upper address bits remain unchanged.
 
-    if constexpr (WRITE) {
-        m_cycles++;
-    } else {
-        if (lo + m_state.x > 0xFF) {
-            // Crossing a page boundry takes an extra internal cycle
+    if constexpr (kModeReadOnly == MODE || kModeReadWrite == MODE) {
+        readMemory(m_address);
+
+        if constexpr (kModeReadWrite == MODE) {
             m_cycles++;
+        } else {
+            if (lo + m_state.x > 0xFF) {
+                // Crossing a page boundry takes an extra internal cycle
+                m_cycles++;
+            }
         }
     }
-
-    return value;
+    if constexpr (kModeWriteOnly == MODE) {
+        m_cycles++;
+    }
 }
 
-template <bool WRITE>
-uint8 Cpu6502::addressModeAbsoluteY()
+template <int MODE>
+void Cpu6502::addressModeAbsoluteY()
 {
-    const uint8  lo    = readMemory(m_state.pc++);
-    const uint8  hi    = readMemory(m_state.pc++);
-    const uint16 base  = hi << 8 | lo;
-    const uint16 addr  = base + m_state.y;
-    const uint8  value = readMemory(addr);
+    const uint8  lo   = readMemory(m_state.pc++);
+    const uint8  hi   = readMemory(m_state.pc++);
+    const uint16 base = hi << 8 | lo;
+    m_address         = base + m_state.y;
 
-    if constexpr (WRITE) {
-        m_cycles++;
-    } else {
-        if (lo + m_state.y > 0xFF) {
-            // Crossing a page boundry takes an extra internal cycle
+    if constexpr (kModeReadOnly == MODE || kModeReadWrite == MODE) {
+        readMemory(m_address);
+
+        if constexpr (kModeReadWrite == MODE) {
             m_cycles++;
+        } else {
+            if (lo + m_state.y > 0xFF) {
+                // Crossing a page boundry takes an extra internal cycle
+                m_cycles++;
+            }
         }
     }
-
-    return value;
+    if constexpr (kModeWriteOnly == MODE) {
+        m_cycles++;
+    }
 }
 
-uint8 Cpu6502::addressModeIndirectX()
+template <int MODE>
+void Cpu6502::addressModeIndirectX()
 {
-    uint8        zp    = readMemory(m_state.pc++) + m_state.x;
-    const uint8  lo    = readMemory(zp++);
-    const uint8  hi    = readMemory(zp);
-    const uint16 addr  = hi << 8 | lo;
-    const uint8  value = readMemory(addr);
+    uint8       zp = readMemory(m_state.pc++) + m_state.x;
+    const uint8 lo = readMemory(zp++);
+    const uint8 hi = readMemory(zp);
+    m_address      = hi << 8 | lo;
+
+    if constexpr (kModeWriteOnly != MODE) {
+        readMemory(m_address);
+    }
 
     // Index mode takes an extra internal cycle
     m_cycles++;
-
-    return value;
 }
 
-template <bool WRITE>
-uint8 Cpu6502::addressModeIndirectY()
+template <int MODE>
+void Cpu6502::addressModeIndirectY()
 {
-    uint8        zp    = readMemory(m_state.pc++);
-    const uint8  lo    = readMemory(zp++);
-    const uint8  hi    = readMemory(zp);
-    const uint16 base  = hi << 8 | lo;
-    const uint16 addr  = base + m_state.y;
-    const uint8  value = readMemory(addr);
+    uint8        zp   = readMemory(m_state.pc++);
+    const uint8  lo   = readMemory(zp++);
+    const uint8  hi   = readMemory(zp);
+    const uint16 base = hi << 8 | lo;
+    m_address         = base + m_state.y;
 
-    if constexpr (WRITE) {
-        m_cycles++;
-    } else {
+    if constexpr (kModeReadOnly == MODE || kModeReadWrite == MODE) {
+        readMemory(m_address);
+
         if (lo + m_state.y > 0xFF) {
             // Crossing a page boundry takes an extra internal cycle
             m_cycles++;
         }
     }
-
-    return value;
+    if constexpr (kModeWriteOnly == MODE) {
+        m_cycles++;
+    }
 }
 
 template <unsigned OP>
@@ -520,43 +534,43 @@ void Cpu6502::opADC_imm()
 
 void Cpu6502::opADC_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opADC();
 }
 
 void Cpu6502::opADC_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opADC();
 }
 
 void Cpu6502::opADC_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opADC();
 }
 
 void Cpu6502::opADC_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opADC();
 }
 
 void Cpu6502::opADC_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opADC();
 }
 
 void Cpu6502::opADC_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opADC();
 }
 
 void Cpu6502::opADC_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opADC();
 }
 
@@ -578,43 +592,43 @@ void Cpu6502::opAND_imm()
 
 void Cpu6502::opAND_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opAND();
 }
 
 void Cpu6502::opAND_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opAND();
 }
 
 void Cpu6502::opAND_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opAND();
 }
 
 void Cpu6502::opAND_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opAND();
 }
 
 void Cpu6502::opAND_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opAND();
 }
 
 void Cpu6502::opAND_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opAND();
 }
 
 void Cpu6502::opAND_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opAND();
 }
 
@@ -642,28 +656,28 @@ void Cpu6502::opASL_acc()
 
 void Cpu6502::opASL_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opASL();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opASL_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadWrite>();
     opASL();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opASL_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadWrite>();
     opASL();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opASL_abs_X()
 {
-    addressModeAbsoluteX<true>();
+    addressModeAbsoluteX<kModeReadWrite>();
     opASL();
     writeMemory(m_address, m_data);
 }
@@ -715,13 +729,13 @@ void Cpu6502::opBIT()
 
 void Cpu6502::opBIT_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opBIT();
 }
 
 void Cpu6502::opBIT_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opBIT();
 }
 
@@ -796,43 +810,43 @@ void Cpu6502::opCMP_imm()
 
 void Cpu6502::opCMP_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opCMP();
 }
 
 void Cpu6502::opCMP_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opCMP();
 }
 
 void Cpu6502::opCMP_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opCMP();
 }
 
 void Cpu6502::opCMP_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opCMP();
 }
 
 void Cpu6502::opCMP_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opCMP();
 }
 
 void Cpu6502::opCMP_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opCMP();
 }
 
 void Cpu6502::opCMP_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opCMP();
 }
 
@@ -853,13 +867,13 @@ void Cpu6502::opCPX_imm()
 
 void Cpu6502::opCPX_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opCPX();
 }
 
 void Cpu6502::opCPX_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opCPX();
 }
 
@@ -880,13 +894,13 @@ void Cpu6502::opCPY_imm()
 
 void Cpu6502::opCPY_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opCPY();
 }
 
 void Cpu6502::opCPY_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opCPY();
 }
 
@@ -905,28 +919,28 @@ void Cpu6502::opDEC()
 
 void Cpu6502::opDEC_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opDEC();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opDEC_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadWrite>();
     opDEC();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opDEC_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadWrite>();
     opDEC();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opDEC_abs_X()
 {
-    addressModeAbsoluteX<true>();
+    addressModeAbsoluteX<kModeReadWrite>();
     opDEC();
     writeMemory(m_address, m_data);
 }
@@ -967,43 +981,43 @@ void Cpu6502::opEOR_imm()
 
 void Cpu6502::opEOR_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opEOR();
 }
 
 void Cpu6502::opEOR_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opEOR();
 }
 
 void Cpu6502::opEOR_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opEOR();
 }
 
 void Cpu6502::opEOR_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opEOR();
 }
 
 void Cpu6502::opEOR_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opEOR();
 }
 
 void Cpu6502::opEOR_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opEOR();
 }
 
 void Cpu6502::opEOR_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opEOR();
 }
 
@@ -1022,28 +1036,28 @@ void Cpu6502::opINC()
 
 void Cpu6502::opINC_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opINC();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opINC_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadWrite>();
     opINC();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opINC_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadWrite>();
     opINC();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opINC_abs_X()
 {
-    addressModeAbsoluteX<true>();
+    addressModeAbsoluteX<kModeReadWrite>();
     opINC();
     writeMemory(m_address, m_data);
 }
@@ -1123,43 +1137,43 @@ void Cpu6502::opLDA_imm()
 
 void Cpu6502::opLDA_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opLDA();
 }
 
 void Cpu6502::opLDA_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opLDA();
 }
 
 void Cpu6502::opLDA_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opLDA();
 }
 
 void Cpu6502::opLDA_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opLDA();
 }
 
 void Cpu6502::opLDA_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opLDA();
 }
 
 void Cpu6502::opLDA_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opLDA();
 }
 
 void Cpu6502::opLDA_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opLDA();
 }
 
@@ -1179,25 +1193,25 @@ void Cpu6502::opLDX_imm()
 
 void Cpu6502::opLDX_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opLDX();
 }
 
 void Cpu6502::opLDX_zp_Y()
 {
-    addressModeZeroPageY();
+    addressModeZeroPageY<kModeReadOnly>();
     opLDX();
 }
 
 void Cpu6502::opLDX_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opLDX();
 }
 
 void Cpu6502::opLDX_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opLDX();
 }
 
@@ -1217,25 +1231,25 @@ void Cpu6502::opLDY_imm()
 
 void Cpu6502::opLDY_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opLDY();
 }
 
 void Cpu6502::opLDY_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opLDY();
 }
 
 void Cpu6502::opLDY_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opLDY();
 }
 
 void Cpu6502::opLDY_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opLDY();
 }
 
@@ -1263,28 +1277,28 @@ void Cpu6502::opLSR_acc()
 
 void Cpu6502::opLSR_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opLSR();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opLSR_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opLSR();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opLSR_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadWrite>();
     opLSR();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opLSR_abs_X()
 {
-    addressModeAbsoluteX<true>();
+    addressModeAbsoluteX<kModeReadWrite>();
     opLSR();
     writeMemory(m_address, m_data);
 }
@@ -1311,43 +1325,43 @@ void Cpu6502::opORA_imm()
 
 void Cpu6502::opORA_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opORA();
 }
 
 void Cpu6502::opORA_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opORA();
 }
 
 void Cpu6502::opORA_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opORA();
 }
 
 void Cpu6502::opORA_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opORA();
 }
 
 void Cpu6502::opORA_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opORA();
 }
 
 void Cpu6502::opORA_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opORA();
 }
 
 void Cpu6502::opORA_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opORA();
 }
 
@@ -1417,28 +1431,28 @@ void Cpu6502::opROL_acc()
 
 void Cpu6502::opROL_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opROL();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opROL_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opROL();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opROL_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadWrite>();
     opROL();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opROL_abs_X()
 {
-    addressModeAbsoluteX<true>();
+    addressModeAbsoluteX<kModeReadWrite>();
     opROL();
     writeMemory(m_address, m_data);
 }
@@ -1467,28 +1481,28 @@ void Cpu6502::opROR_acc()
 
 void Cpu6502::opROR_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opROR();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opROR_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opROR();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opROR_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadWrite>();
     opROR();
     writeMemory(m_address, m_data);
 }
 
 void Cpu6502::opROR_abs_X()
 {
-    addressModeAbsoluteX<true>();
+    addressModeAbsoluteX<kModeReadWrite>();
     opROR();
     writeMemory(m_address, m_data);
 }
@@ -1536,43 +1550,43 @@ void Cpu6502::opSBC_imm()
 
 void Cpu6502::opSBC_zp()
 {
-    addressModeZeroPage();
+    addressModeZeroPage<kModeReadOnly>();
     opSBC();
 }
 
 void Cpu6502::opSBC_zp_X()
 {
-    addressModeZeroPageX();
+    addressModeZeroPageX<kModeReadOnly>();
     opSBC();
 }
 
 void Cpu6502::opSBC_abs()
 {
-    addressModeAbsolute();
+    addressModeAbsolute<kModeReadOnly>();
     opSBC();
 }
 
 void Cpu6502::opSBC_abs_X()
 {
-    addressModeAbsoluteX<false>();
+    addressModeAbsoluteX<kModeReadOnly>();
     opSBC();
 }
 
 void Cpu6502::opSBC_abs_Y()
 {
-    addressModeAbsoluteY<false>();
+    addressModeAbsoluteY<kModeReadOnly>();
     opSBC();
 }
 
 void Cpu6502::opSBC_ind_X()
 {
-    addressModeIndirectX();
+    addressModeIndirectX<kModeReadOnly>();
     opSBC();
 }
 
 void Cpu6502::opSBC_ind_Y()
 {
-    addressModeIndirectY<false>();
+    addressModeIndirectY<kModeReadOnly>();
     opSBC();
 }
 
@@ -1592,6 +1606,99 @@ void Cpu6502::opSEI()
 {
     addressModeImplied();
     setRegister(I, true);
+}
+
+void Cpu6502::opSTA()
+{
+    writeMemory(m_address, m_state.a);
+}
+
+void Cpu6502::opSTA_zp()
+{
+    addressModeZeroPage<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTA_zp_X()
+{
+    addressModeZeroPageX<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTA_abs()
+{
+    addressModeAbsolute<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTA_abs_X()
+{
+    addressModeAbsoluteX<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTA_abs_Y()
+{
+    addressModeAbsoluteY<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTA_ind_X()
+{
+    addressModeIndirectX<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTA_ind_Y()
+{
+    addressModeIndirectY<kModeWriteOnly>();
+    opSTA();
+}
+
+void Cpu6502::opSTX()
+{
+    writeMemory(m_address, m_state.x);
+}
+
+void Cpu6502::opSTX_zp()
+{
+    addressModeZeroPage<kModeWriteOnly>();
+    opSTX();
+}
+
+void Cpu6502::opSTX_zp_Y()
+{
+    addressModeZeroPageY<kModeWriteOnly>();
+    opSTX();
+}
+
+void Cpu6502::opSTX_abs()
+{
+    addressModeAbsolute<kModeWriteOnly>();
+    opSTX();
+}
+
+void Cpu6502::opSTY()
+{
+    writeMemory(m_address, m_state.y);
+}
+
+void Cpu6502::opSTY_zp()
+{
+    addressModeZeroPage<kModeWriteOnly>();
+    opSTY();
+}
+
+void Cpu6502::opSTY_zp_X()
+{
+    addressModeZeroPageX<kModeWriteOnly>();
+    opSTY();
+}
+
+void Cpu6502::opSTY_abs()
+{
+    addressModeAbsolute<kModeWriteOnly>();
+    opSTY();
 }
 
 bool NESEmu::operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs)

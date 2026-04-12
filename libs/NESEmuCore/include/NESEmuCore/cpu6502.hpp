@@ -50,8 +50,8 @@ public:
 private:
     typedef void (Cpu6502::*OpcodeHandler)();
 
-    [[nodiscard]] inline uint8 readMemory(uint16 address);
-    inline void                writeMemory(uint16 address, uint8 value);
+    inline uint8 readMemory(uint16 address);
+    inline void  writeMemory(uint16 address, uint8 value);
 
     [[nodiscard]] bool getRegister(const RegisterFlag flag) const { return m_state.p & flag; }
     void               setRegister(const RegisterFlag flag, bool value) { m_state.p = (m_state.p & ~flag) | (-static_cast<uint8>(value) & flag); }
@@ -60,17 +60,21 @@ private:
     inline uint8 popStack();
 
     // Addressing modes
-    inline void                 addressModeImplied();
-    inline uint8                addressModeImmediate();
-    inline uint8                addressModeRelative();
-    inline uint8                addressModeZeroPage();
-    inline uint8                addressModeZeroPageX();
-    inline uint8                addressModeZeroPageY();
-    inline uint8                addressModeAbsolute();
-    template <bool WRITE> uint8 addressModeAbsoluteX();
-    template <bool WRITE> uint8 addressModeAbsoluteY();
-    inline uint8                addressModeIndirectX();
-    template <bool WRITE> uint8 addressModeIndirectY();
+    static constexpr int kModeReadOnly  = 0;
+    static constexpr int kModeWriteOnly = 1;
+    static constexpr int kModeReadWrite = 2;
+
+    inline void              addressModeImplied();
+    inline void              addressModeImmediate();
+    inline void              addressModeRelative();
+    template <int MODE> void addressModeZeroPage();
+    template <int MODE> void addressModeZeroPageX();
+    template <int MODE> void addressModeZeroPageY();
+    template <int MODE> void addressModeAbsolute();
+    template <int MODE> void addressModeAbsoluteX();
+    template <int MODE> void addressModeAbsoluteY();
+    template <int MODE> void addressModeIndirectX();
+    template <int MODE> void addressModeIndirectY();
 
     // Opcodes
     template <unsigned OP> void opInvalid();
@@ -223,6 +227,22 @@ private:
     void                        opSEC();
     void                        opSED();
     void                        opSEI();
+    inline void                 opSTA();
+    void                        opSTA_zp();
+    void                        opSTA_zp_X();
+    void                        opSTA_abs();
+    void                        opSTA_abs_X();
+    void                        opSTA_abs_Y();
+    void                        opSTA_ind_X();
+    void                        opSTA_ind_Y();
+    inline void                 opSTX();
+    void                        opSTX_zp();
+    void                        opSTX_zp_Y();
+    void                        opSTX_abs();
+    inline void                 opSTY();
+    void                        opSTY_zp();
+    void                        opSTY_zp_X();
+    void                        opSTY_abs();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 
