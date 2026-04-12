@@ -220,6 +220,9 @@ private:
     void                        opSBC_abs_Y();
     void                        opSBC_ind_X();
     void                        opSBC_ind_Y();
+    void                        opSEC();
+    void                        opSED();
+    void                        opSEI();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 

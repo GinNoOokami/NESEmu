@@ -68,7 +68,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x35] = &Cpu6502::opAND_zp_X;
     m_opcodeHandlers[0x36] = &Cpu6502::opROL_zp_X;
     m_opcodeHandlers[0x37] = &Cpu6502::opInvalid<0x37>;
-    m_opcodeHandlers[0x38] = &Cpu6502::opInvalid<0x38>;
+    m_opcodeHandlers[0x38] = &Cpu6502::opSEC;
     m_opcodeHandlers[0x39] = &Cpu6502::opAND_abs_Y;
     m_opcodeHandlers[0x3A] = &Cpu6502::opInvalid<0x3A>;
     m_opcodeHandlers[0x3B] = &Cpu6502::opInvalid<0x3B>;
@@ -136,7 +136,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x75] = &Cpu6502::opADC_zp_X;
     m_opcodeHandlers[0x76] = &Cpu6502::opROR_zp_X;
     m_opcodeHandlers[0x77] = &Cpu6502::opInvalid<0x77>;
-    m_opcodeHandlers[0x78] = &Cpu6502::opInvalid<0x78>;
+    m_opcodeHandlers[0x78] = &Cpu6502::opSEI;
     m_opcodeHandlers[0x79] = &Cpu6502::opADC_abs_Y;
     m_opcodeHandlers[0x7A] = &Cpu6502::opInvalid<0x7A>;
     m_opcodeHandlers[0x7B] = &Cpu6502::opInvalid<0x7B>;
@@ -272,7 +272,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xF5] = &Cpu6502::opSBC_zp_X;
     m_opcodeHandlers[0xF6] = &Cpu6502::opINC_zp_X;
     m_opcodeHandlers[0xF7] = &Cpu6502::opInvalid<0xF7>;
-    m_opcodeHandlers[0xF8] = &Cpu6502::opInvalid<0xF8>;
+    m_opcodeHandlers[0xF8] = &Cpu6502::opSED;
     m_opcodeHandlers[0xF9] = &Cpu6502::opSBC_abs_Y;
     m_opcodeHandlers[0xFA] = &Cpu6502::opInvalid<0xFA>;
     m_opcodeHandlers[0xFB] = &Cpu6502::opInvalid<0xFB>;
@@ -1574,6 +1574,24 @@ void Cpu6502::opSBC_ind_Y()
 {
     addressModeIndirectY<false>();
     opSBC();
+}
+
+void Cpu6502::opSEC()
+{
+    addressModeImplied();
+    setRegister(C, true);
+}
+
+void Cpu6502::opSED()
+{
+    addressModeImplied();
+    setRegister(D, true);
+}
+
+void Cpu6502::opSEI()
+{
+    addressModeImplied();
+    setRegister(I, true);
 }
 
 bool NESEmu::operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs)
