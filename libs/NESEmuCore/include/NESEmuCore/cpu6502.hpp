@@ -243,6 +243,12 @@ private:
     void                        opSTY_zp();
     void                        opSTY_zp_X();
     void                        opSTY_abs();
+    void                        opTAX();
+    void                        opTAY();
+    void                        opTSX();
+    void                        opTXA();
+    void                        opTXS();
+    void                        opTYA();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 

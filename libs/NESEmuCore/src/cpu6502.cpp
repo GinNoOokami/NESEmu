@@ -155,7 +155,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x87] = &Cpu6502::opInvalid<0x87>;
     m_opcodeHandlers[0x88] = &Cpu6502::opDEY;
     m_opcodeHandlers[0x89] = &Cpu6502::opInvalid<0x89>;
-    m_opcodeHandlers[0x8A] = &Cpu6502::opInvalid<0x8A>;
+    m_opcodeHandlers[0x8A] = &Cpu6502::opTXA;
     m_opcodeHandlers[0x8B] = &Cpu6502::opInvalid<0x8B>;
     m_opcodeHandlers[0x8C] = &Cpu6502::opSTY_abs;
     m_opcodeHandlers[0x8D] = &Cpu6502::opSTA_abs;
@@ -170,9 +170,9 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x95] = &Cpu6502::opSTA_zp_X;
     m_opcodeHandlers[0x96] = &Cpu6502::opSTX_zp_Y;
     m_opcodeHandlers[0x97] = &Cpu6502::opInvalid<0x97>;
-    m_opcodeHandlers[0x98] = &Cpu6502::opInvalid<0x98>;
+    m_opcodeHandlers[0x98] = &Cpu6502::opTYA;
     m_opcodeHandlers[0x99] = &Cpu6502::opSTA_abs_Y;
-    m_opcodeHandlers[0x9A] = &Cpu6502::opInvalid<0x9A>;
+    m_opcodeHandlers[0x9A] = &Cpu6502::opTXS;
     m_opcodeHandlers[0x9B] = &Cpu6502::opInvalid<0x9B>;
     m_opcodeHandlers[0x9C] = &Cpu6502::opInvalid<0x9C>;
     m_opcodeHandlers[0x9D] = &Cpu6502::opSTA_abs_X;
@@ -187,9 +187,9 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xA5] = &Cpu6502::opLDA_zp;
     m_opcodeHandlers[0xA6] = &Cpu6502::opLDX_zp;
     m_opcodeHandlers[0xA7] = &Cpu6502::opInvalid<0xA7>;
-    m_opcodeHandlers[0xA8] = &Cpu6502::opInvalid<0xA8>;
+    m_opcodeHandlers[0xA8] = &Cpu6502::opTAY;
     m_opcodeHandlers[0xA9] = &Cpu6502::opLDA_imm;
-    m_opcodeHandlers[0xAA] = &Cpu6502::opInvalid<0xAA>;
+    m_opcodeHandlers[0xAA] = &Cpu6502::opTAX;
     m_opcodeHandlers[0xAB] = &Cpu6502::opInvalid<0xAB>;
     m_opcodeHandlers[0xAC] = &Cpu6502::opLDY_abs;
     m_opcodeHandlers[0xAD] = &Cpu6502::opLDA_abs;
@@ -206,7 +206,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0xB7] = &Cpu6502::opInvalid<0xB7>;
     m_opcodeHandlers[0xB8] = &Cpu6502::opCLV;
     m_opcodeHandlers[0xB9] = &Cpu6502::opLDA_abs_Y;
-    m_opcodeHandlers[0xBA] = &Cpu6502::opInvalid<0xBA>;
+    m_opcodeHandlers[0xBA] = &Cpu6502::opTSX;
     m_opcodeHandlers[0xBB] = &Cpu6502::opInvalid<0xBB>;
     m_opcodeHandlers[0xBC] = &Cpu6502::opLDY_abs_X;
     m_opcodeHandlers[0xBD] = &Cpu6502::opLDA_abs_X;
@@ -1699,6 +1699,57 @@ void Cpu6502::opSTY_abs()
 {
     addressModeAbsolute<kModeWriteOnly>();
     opSTY();
+}
+
+void Cpu6502::opTAX()
+{
+    addressModeImplied();
+    m_state.x = m_state.a;
+
+    setRegister(Z, !m_state.x);
+    setRegister(N, m_state.x & 0x80);
+}
+
+void Cpu6502::opTAY()
+{
+    addressModeImplied();
+    m_state.y = m_state.a;
+
+    setRegister(Z, !m_state.y);
+    setRegister(N, m_state.y & 0x80);
+}
+
+void Cpu6502::opTSX()
+{
+    addressModeImplied();
+    m_state.x = m_state.sp;
+
+    setRegister(Z, !m_state.x);
+    setRegister(N, m_state.x & 0x80);
+}
+
+void Cpu6502::opTXA()
+{
+    addressModeImplied();
+    m_state.a = m_state.x;
+
+    setRegister(Z, !m_state.a);
+    setRegister(N, m_state.a & 0x80);
+}
+
+void Cpu6502::opTXS()
+{
+    addressModeImplied();
+    m_state.sp = m_state.x;
+}
+
+void Cpu6502::opTYA()
+{
+    addressModeImplied();
+    m_state.a = m_state.y;
+
+    setRegister(Z, !m_state.a);
+    setRegister(N, m_state.a & 0x80);
 }
 
 bool NESEmu::operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs)
