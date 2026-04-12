@@ -198,7 +198,28 @@ private:
     void                        opPHP();
     void                        opPLA();
     void                        opPLP();
+    inline void                 opROL();
+    void                        opROL_acc();
+    void                        opROL_zp();
+    void                        opROL_zp_X();
+    void                        opROL_abs();
+    void                        opROL_abs_X();
+    inline void                 opROR();
+    void                        opROR_acc();
+    void                        opROR_zp();
+    void                        opROR_zp_X();
+    void                        opROR_abs();
+    void                        opROR_abs_X();
     void                        opRTS();
+    inline void                 opSBC();
+    void                        opSBC_imm();
+    void                        opSBC_zp();
+    void                        opSBC_zp_X();
+    void                        opSBC_abs();
+    void                        opSBC_abs_X();
+    void                        opSBC_abs_Y();
+    void                        opSBC_ind_X();
+    void                        opSBC_ind_Y();
 
     OpcodeHandler m_opcodeHandlers[256]{ nullptr };
 
@@ -213,20 +234,9 @@ private:
     Bus& m_bus;
 };
 
-inline bool operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs)
-{
-    return lhs.pc == rhs.pc &&
-           lhs.sp == rhs.sp &&
-           lhs.a == rhs.a &&
-           lhs.x == rhs.x &&
-           lhs.y == rhs.y &&
-           lhs.p == rhs.p;
-}
+bool operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs);
+bool operator!=(const Cpu6502::State& lhs, const Cpu6502::State& rhs);
 
-inline bool operator!=(const Cpu6502::State& lhs, const Cpu6502::State& rhs)
-{
-    return !(lhs == rhs);
-}
 }
 
 #endif //NESEMU_CPU_6502_HPP
