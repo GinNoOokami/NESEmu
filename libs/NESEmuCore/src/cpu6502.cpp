@@ -9,7 +9,7 @@ using namespace NESEmu;
 Cpu6502::Cpu6502(Bus& bus)
     : m_bus(bus)
 {
-    m_opcodeHandlers[0x00] = &Cpu6502::opInvalid<0x00>;
+    m_opcodeHandlers[0x00] = &Cpu6502::opBRK;
     m_opcodeHandlers[0x01] = &Cpu6502::opORA_ind_X;
     m_opcodeHandlers[0x02] = &Cpu6502::opInvalid<0x02>;
     m_opcodeHandlers[0x03] = &Cpu6502::opInvalid<0x03>;
@@ -77,7 +77,7 @@ Cpu6502::Cpu6502(Bus& bus)
     m_opcodeHandlers[0x3E] = &Cpu6502::opROL_abs_X;
     m_opcodeHandlers[0x3F] = &Cpu6502::opInvalid<0x3F>;
 
-    m_opcodeHandlers[0x40] = &Cpu6502::opInvalid<0x40>;
+    m_opcodeHandlers[0x40] = &Cpu6502::opRTI;
     m_opcodeHandlers[0x41] = &Cpu6502::opEOR_ind_X;
     m_opcodeHandlers[0x42] = &Cpu6502::opInvalid<0x42>;
     m_opcodeHandlers[0x43] = &Cpu6502::opInvalid<0x43>;
@@ -755,6 +755,24 @@ void Cpu6502::opBPL()
 {
     addressModeRelative();
     opBRC(!getRegister(N));
+}
+
+void Cpu6502::opBRK()
+{
+    addressModeImplied();
+
+    const uint16 pc = m_state.pc + 1;
+    const uint8  p  = m_state.p & 0b11001111 | 0b00110000;
+
+    pushStack(static_cast<uint8>(pc >> 8));
+    pushStack(static_cast<uint8>(pc));
+    pushStack(p);
+
+    setRegister(I, true);
+
+    const uint8 lo = readMemory(kVecIrq);
+    const uint8 hi = readMemory(kVecIrq + 1);
+    m_state.pc     = hi << 8 | lo;
 }
 
 void Cpu6502::opBVC()
@@ -1507,11 +1525,26 @@ void Cpu6502::opROR_abs_X()
     writeMemory(m_address, m_data);
 }
 
+void Cpu6502::opRTI()
+{
+    addressModeImplied();
+
+    const uint8  p  = popStack() & 0b11001111 | 0b00100000;
+    const uint8  lo = popStack();
+    const uint8  hi = popStack();
+    const uint16 pc = hi << 8 | lo;
+
+    m_state.p  = p;
+    m_state.pc = pc;
+
+    m_cycles++;
+}
+
 void Cpu6502::opRTS()
 {
-    const uint8  lo   = popStack();
-    const uint8  hi   = popStack();
-    const uint16 addr = hi << 8 | lo;
+    const uint8  lo = popStack();
+    const uint8  hi = popStack();
+    const uint16 pc = hi << 8 | lo;
 
     // JSR performs several dummy reads during this instruction
     // An interesting discussion that outlines exactly why this
@@ -1526,7 +1559,7 @@ void Cpu6502::opRTS()
     // Cycle 6: PC is updated with PC-1, new PC sent to address bus, byte before destination is read because something has to happen, PC will be incremented as usual
     m_cycles += 3;
 
-    m_state.pc = addr + 1;
+    m_state.pc = pc + 1;
 }
 
 void Cpu6502::opSBC()

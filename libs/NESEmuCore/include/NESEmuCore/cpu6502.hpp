@@ -112,6 +112,7 @@ private:
     void                        opBMI();
     void                        opBNE();
     void                        opBPL();
+    void                        opBRK();
     void                        opBVC();
     void                        opBVS();
     void                        opCLC();
@@ -214,6 +215,7 @@ private:
     void                        opROR_zp_X();
     void                        opROR_abs();
     void                        opROR_abs_X();
+    void                        opRTI();
     void                        opRTS();
     inline void                 opSBC();
     void                        opSBC_imm();

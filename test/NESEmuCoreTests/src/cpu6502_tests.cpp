@@ -61,6 +61,7 @@ TEST_CASE(descriptionText)                                          \
     runOpcodeStepTests(opcodeValue, descriptionText);               \
 }
 
+DEFINE_OPCODE_STEP_TEST(0x00, "$00 BRK (implied)")
 DEFINE_OPCODE_STEP_TEST(0x01, "$01 ORA (indirect,X)")
 DEFINE_OPCODE_STEP_TEST(0x05, "$05 ORA (zero page)")
 DEFINE_OPCODE_STEP_TEST(0x06, "$06 ASL (zero page)")
@@ -96,6 +97,7 @@ DEFINE_OPCODE_STEP_TEST(0x38, "$38 SEC (implied)")
 DEFINE_OPCODE_STEP_TEST(0x39, "$39 AND (absolute,Y)")
 DEFINE_OPCODE_STEP_TEST(0x3d, "$3d AND (absolute,X)")
 DEFINE_OPCODE_STEP_TEST(0x3e, "$3e ROL (absolute,X)")
+DEFINE_OPCODE_STEP_TEST(0x40, "$40 RTI (implied)")
 DEFINE_OPCODE_STEP_TEST(0x41, "$41 EOR (indirect,X)")
 DEFINE_OPCODE_STEP_TEST(0x45, "$45 EOR (zero page)")
 DEFINE_OPCODE_STEP_TEST(0x46, "$46 LSR (zero page)")
