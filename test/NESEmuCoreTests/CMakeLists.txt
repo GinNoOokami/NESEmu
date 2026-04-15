@@ -18,9 +18,8 @@ target_sources(NESEmuCoreTests
             include
         FILES
             include/cpu_step_tests.hpp
+            include/test_bus.hpp
 )
-target_compile_definitions(NESEmuCore PRIVATE RUN_TESTS)
-target_compile_definitions(NESEmuCoreTests PRIVATE RUN_TESTS)
 
 target_link_libraries(NESEmuCoreTests
         PRIVATE
@@ -40,7 +39,6 @@ set(TEST_OUTPUT_ROM_DIR ${TEST_OUTPUT_DATA_DIR}/rom)
 file(GLOB ROM_FILES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/data/rom/*.nes"
 )
-
 
 add_custom_command(TARGET NESEmuCoreTests POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${TEST_OUTPUT_ROM_DIR}"

@@ -1,5 +1,7 @@
 #include "cpu_step_tests.hpp"
 
+#include "test_bus.hpp"
+
 #include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/memory.hpp"
@@ -10,9 +12,9 @@ using namespace NESEmu;
 
 TEST_CASE("CPU Init State")
 {
-    FlatMemory memory;
-    Bus        bus(memory);
-    Cpu6502    cpu(bus);
+    InternalRam memory;
+    DefaultBus  bus(memory);
+    Cpu6502     cpu(bus);
     cpu.startup();
 
     CHECK_EQ(cpu.state().sp, 0xFD);
@@ -38,9 +40,8 @@ void runOpcodeStepTests(uint8_t opcode, const std::string& instructionDesc)
         std::ostringstream oss;
         INFO("Executing test: ", createTestName(instructionDesc, test), "\ninitial_state=", test.initial_state);
 
-        FlatMemory memory;
-        Bus        bus(memory);
-        Cpu6502    cpu(bus);
+        TestBus bus;
+        Cpu6502 cpu(bus);
 
         test.initializeCpu(cpu, bus);
         auto initialCycles = cpu.cycles();

@@ -30,27 +30,70 @@ CPU Memory Map
 */
 
 namespace NESEmu {
-#ifndef RUN_TESTS
 class InternalRam;
-using Memory = InternalRam;
-#else
-class FlatMemory;
-using Memory = FlatMemory;
-#endif
+
+enum BusType {
+    kBusDefault,
+    kBusTest,
+    kMaxBusTypes
+};
 
 class Bus {
+public:
+    [[nodiscard]] uint8 read(const uint16_t address) { return m_readFn[type](*this, address); }
+    void                write(const uint16_t address, const uint8 data) { m_writeFn[type](*this, address, data); }
+
+protected:
+    explicit Bus(const BusType t) : type(t) {}
+
+    using readFn                                  = uint8 (*)(Bus&, uint16_t);
+    using writeFn                                 = void (*)(Bus&, uint16, uint8);
+    inline static readFn  m_readFn[kMaxBusTypes]  = {};
+    inline static writeFn m_writeFn[kMaxBusTypes] = {};
+
+    const BusType type;
+};
+
+template <class T, BusType TBus>
+class BusCRTP : public Bus {
+    static const BusType type;
+
+    static uint8 readBus(Bus& b, uint16 address)
+    {
+        return static_cast<T&>(b).read(address);
+    }
+
+    static void writeBus(Bus& b, uint16 address, uint8 data)
+    {
+        static_cast<T&>(b).write(address, data);
+    }
+
+    static constexpr BusType Register()
+    {
+        return m_readFn[TBus] = readBus, m_writeFn[TBus] = writeBus, TBus;
+    }
+
+protected:
+    BusCRTP() : Bus(type) {}
+};
+
+template <class T, BusType TBus>
+const BusType BusCRTP<T, TBus>::type = Register();
+
+class DefaultBus : public BusCRTP<DefaultBus, kBusDefault> {
     static constexpr uint16 ADDRESS_MASK       = 0b1111100000000000;
-    static constexpr uint16 MEMORY_ENABLE_MASK = 0b0001100000000000;
+    static constexpr uint16 MEMORY_ENABLE_MASK = 0b0000000000000000; // $0000–$1FFF
+    static constexpr uint16 PPU_ENABLE_MASK    = 0b0010000000000000; // $2000–$3FFF
+    static constexpr uint16 APU_IO_ENABLE_MASK = 0b0100000000000000; // $4000–$5FFF
 
 public:
-    explicit Bus(Memory& memory) : m_memory(memory) {}
-    ~Bus() = default;
+    explicit DefaultBus(InternalRam& memory) : m_memory(memory) {}
 
-    uint8 read(uint16 address);
-    void  write(uint16 address, uint8 data);
+    [[nodiscard]] uint8 read(uint16 address);
+    void                write(uint16 address, uint8 data);
 
 private:
-    Memory& m_memory;
+    InternalRam& m_memory;
 
     uint8 m_openBusData = 0;
 };

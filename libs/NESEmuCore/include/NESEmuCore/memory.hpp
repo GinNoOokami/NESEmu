@@ -28,24 +28,6 @@ private:
     // The NES cpu has 2KB of memory, with 3 mirrored sections repeated from $800-$1FFF
     std::array<uint8, 0x800> m_memory{};
 };
-
-class FlatMemory : public BusMappable<FlatMemory> {
-    friend BusMappable;
-
-public:
-    FlatMemory()  = default;
-    ~FlatMemory() = default;
-
-protected:
-    [[nodiscard]] static bool isReadEnabled(const uint16) { return true; }
-    [[nodiscard]] static bool isWriteEnabled(const uint16) { return true; }
-    [[nodiscard]] uint8       readBus(const uint16 address) const { return m_memory[address]; }
-    void                      writeBus(const uint16 address, const uint8 data) { m_memory[address] = data; }
-
-private:
-    // Tests can use the full 64kb address space
-    std::array<uint8, 0x10000> m_memory{};
-};
 }
 
 #endif //NESEMU_MEMORY_HPP

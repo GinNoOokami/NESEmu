@@ -5,3 +5,4 @@ AlignConsecutiveDeclarations: true
 AlignConsecutiveAssignments: AcrossEmptyLines
 AlignEscapedNewlines: LeftWithLastLine
 AlignOperands: AlignAfterOperator
+IndentCaseLabels: true
