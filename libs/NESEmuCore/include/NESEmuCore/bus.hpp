@@ -4,6 +4,10 @@
 #include "NESEmuCore/emu_types.hpp"
 
 /*
+# References
+https://www.nesdev.org/wiki/CE_Decoder
+https://www.nesdev.org/wiki/CPU_memory_map
+
 CPU Memory Map
 ---------------------------------------------------------------
 |Address range	Size	Device
@@ -35,6 +39,9 @@ using Memory = FlatMemory;
 #endif
 
 class Bus {
+    static constexpr uint16 ADDRESS_MASK       = 0b1111100000000000;
+    static constexpr uint16 MEMORY_ENABLE_MASK = 0b0001100000000000;
+
 public:
     explicit Bus(Memory& memory) : m_memory(memory) {}
     ~Bus() = default;

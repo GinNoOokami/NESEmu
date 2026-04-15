@@ -3,6 +3,13 @@
 
 #include "emu_types.hpp"
 
+// # References
+// https://www.nesdev.org/wiki/CPU
+// https://www.masswerk.at/6502/6502_instruction_set.html
+//
+// This post gives an excellent breakdown on general cycle timing
+// https://retrocomputing.stackexchange.com/a/17891
+
 namespace NESEmu {
 class Bus;
 
