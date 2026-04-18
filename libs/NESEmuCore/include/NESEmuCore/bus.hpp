@@ -1,6 +1,7 @@
 #ifndef NESEMU_BUS_HPP
 #define NESEMU_BUS_HPP
 
+#include "cartridge.hpp"
 #include "NESEmuCore/emu_types.hpp"
 
 /*
@@ -81,19 +82,27 @@ template <class T, BusType TBus>
 const BusType BusCRTP<T, TBus>::type = Register();
 
 class DefaultBus : public BusCRTP<DefaultBus, kBusDefault> {
-    static constexpr uint16 ADDRESS_MASK       = 0b1111100000000000;
-    static constexpr uint16 MEMORY_ENABLE_MASK = 0b0000000000000000; // $0000–$1FFF
-    static constexpr uint16 PPU_ENABLE_MASK    = 0b0010000000000000; // $2000–$3FFF
-    static constexpr uint16 APU_IO_ENABLE_MASK = 0b0100000000000000; // $4000–$5FFF
+    static constexpr uint16 ADDRESS_MASK           = 0b1110000000000000;
+    static constexpr uint16 MEMORY_ENABLE_MASK     = 0b0000000000000000; // $0000–$1FFF
+    static constexpr uint16 PPU_ENABLE_MASK        = 0b0010000000000000; // $2000–$3FFF
+    static constexpr uint16 APU_IO_ENABLE_MASK     = 0b0100000000000000; // $4000–$5FFF
+    static constexpr uint16 SRAM_ENABLE_MASK       = 0b0110000000000000; // $6000-$7FFF
+    static constexpr uint16 CARTRIDGE1_ENABLE_MASK = 0b1000000000000000; // $8000-$FFFF
+    static constexpr uint16 CARTRIDGE2_ENABLE_MASK = 0b1010000000000000; // $8000-$FFFF
+    static constexpr uint16 CARTRIDGE3_ENABLE_MASK = 0b1100000000000000; // $8000-$FFFF
+    static constexpr uint16 CARTRIDGE4_ENABLE_MASK = 0b1110000000000000; // $8000-$FFFF
 
 public:
-    explicit DefaultBus(InternalRam& memory) : m_memory(memory) {}
+    explicit DefaultBus(InternalRam& memory) : m_memory(memory), m_mapper(nullptr) {}
 
     [[nodiscard]] uint8 read(uint16 address);
     void                write(uint16 address, uint8 data);
+    void                mapper(MapperNRom* mapper) { m_mapper = mapper; }
 
 private:
     InternalRam& m_memory;
+
+    MapperNRom* m_mapper;
 
     uint8 m_openBusData = 0;
 };

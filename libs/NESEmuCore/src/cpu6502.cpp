@@ -288,7 +288,11 @@ void Cpu6502::startup()
 {
     // https://www.nesdev.org/wiki/Init_code
 
-    m_state.pc = readMemory(kVecReset);
+    const uint8 lo = readMemory(kVecReset);
+    const uint8 hi = readMemory(kVecReset + 1);
+    m_address      = hi << 8 | lo;
+
+    m_state.pc = m_address;
     m_state.sp = 0xFD;
     m_state.a  = 0;
     m_state.x  = 0;

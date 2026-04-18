@@ -6,6 +6,7 @@ target_sources(NESEmuCore
         src/bus.cpp
         src/cpu6502.cpp
         src/cartridge.cpp
+        src/mapper_nrom.cpp
 
     PUBLIC
         FILE_SET HEADERS
@@ -18,5 +19,6 @@ target_sources(NESEmuCore
             include/NESEmuCore/cpu6502.hpp
             include/NESEmuCore/debug_format.hpp
             include/NESEmuCore/emu_types.hpp
+            include/NESEmuCore/mapper_nrom.hpp
             include/NESEmuCore/memory.hpp
 )

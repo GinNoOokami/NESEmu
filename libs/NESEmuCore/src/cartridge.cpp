@@ -5,7 +5,7 @@
 
 using namespace NESEmu;
 
-Cartridge* Cartridge::loadFromFile(const std::filesystem::path& path)
+Cartridge* Cartridge::createFromFile(const std::filesystem::path& path)
 {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
@@ -13,12 +13,24 @@ Cartridge* Cartridge::loadFromFile(const std::filesystem::path& path)
     }
 
     CartridgeInfo info{};
+    info.path = path;
+
     if (tryLoadiNESHeader(file, info)) {
         return new Cartridge(info);
     }
 
     // Not a supported ROM file
     return nullptr;
+}
+
+MapperNRom* Cartridge::loadMapper() const
+{
+    std::ifstream file(m_info.path, std::ios::binary);
+    if (!file) {
+        throw std::runtime_error("Invalid ROM path: " + m_info.path.string());
+    }
+
+    return new MapperNRom(file, m_info.headerOffset, m_info.prgRomSizeBytes, m_info.chrRomSizeBytes);
 }
 
 Cartridge::Cartridge(const CartridgeInfo& info)
@@ -38,8 +50,11 @@ bool Cartridge::tryLoadiNESHeader(std::ifstream& file, CartridgeInfo& info)
         return false;
     }
 
-    info.prgRomSize = header.prgRomSize * 16384;
-    info.chrRomSize = header.chrRomSize * 8192;
+    static_assert(sizeof(header) < 256, "Header size is too large");
+
+    info.headerOffset    = sizeof(header);
+    info.prgRomSizeBytes = header.prgRomSize * 16384;
+    info.chrRomSizeBytes = header.chrRomSize * 8192;
 
     uint8 lo    = header.flag1 & 0xF0;
     uint8 hi    = header.flag2 & 0xF0;

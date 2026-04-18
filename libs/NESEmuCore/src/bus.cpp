@@ -12,6 +12,14 @@ uint8 DefaultBus::read(const uint16 address)
         case MEMORY_ENABLE_MASK:
             data = m_openBusData = m_memory.read(address);
             break;
+        case CARTRIDGE1_ENABLE_MASK:
+        case CARTRIDGE2_ENABLE_MASK:
+        case CARTRIDGE3_ENABLE_MASK:
+        case CARTRIDGE4_ENABLE_MASK:
+            if (m_mapper != nullptr) {
+                data = m_mapper->read(address);
+            }
+            break;
         default:
             break;
     }

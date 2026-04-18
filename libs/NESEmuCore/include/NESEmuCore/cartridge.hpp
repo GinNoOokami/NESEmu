@@ -2,6 +2,7 @@
 #define NESEMU_CARTRIDGE_H
 
 #include "emu_types.hpp"
+#include "mapper_nrom.hpp"
 
 #include <filesystem>
 
@@ -16,7 +17,7 @@
 namespace NESEmu {
 
 struct iNESCartridgeHeader {
-    constexpr static uint32 kMagic = 0x1A53454E;
+    constexpr static uint32 kMagic = 0x1A53454E; // "NES" in little endian
 
     uint32 magic;
     uint8  prgRomSize;
@@ -29,12 +30,18 @@ struct iNESCartridgeHeader {
 class Cartridge {
 public:
     struct CartridgeInfo {
-        uint8 prgRomSize;
-        uint8 chrRomSize;
-        uint8 mapper;
+        std::filesystem::path path;
+        uint32                prgRomSizeBytes;
+        uint32                chrRomSizeBytes;
+        uint16                mapper;
+        uint8                 headerOffset;
     };
 
-    static Cartridge* loadFromFile(const std::filesystem::path& path);
+    static Cartridge* createFromFile(const std::filesystem::path& path);
+
+    [[nodiscard]] const CartridgeInfo& info() const { return m_info; }
+
+    [[nodiscard]] MapperNRom* loadMapper() const;
 
 private:
     explicit Cartridge(const CartridgeInfo& info);
