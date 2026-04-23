@@ -18,7 +18,9 @@ uint8 Ppu::readBus(uint16 address) const
         case PpuRegisters::kPpuMask:
         case PpuRegisters::kPpuStatus:
         case PpuRegisters::kOamAddr:
+            return m_oamAddr;
         case PpuRegisters::kOamData:
+            return m_oam.raw[m_oamAddr];
         case PpuRegisters::kPpuScroll:
         case PpuRegisters::kPpuAddr:
         case PpuRegisters::kPpuData:
@@ -40,7 +42,11 @@ void Ppu::writeBus(const uint16 address, const uint8 data)
         case PpuRegisters::kPpuMask:
         case PpuRegisters::kPpuStatus:
         case PpuRegisters::kOamAddr:
+            m_oamAddr = data;
+            break;
         case PpuRegisters::kOamData:
+            m_oam.raw[m_oamAddr++] = data;
+            break;
         case PpuRegisters::kPpuScroll:
         case PpuRegisters::kPpuAddr:
         case PpuRegisters::kPpuData:

@@ -102,4 +102,39 @@ TEST_CASE("PPUCTRL")
         CHECK((ppu.read(ppuCtrl) == 0x55));
     }
 }
+
+TEST_CASE("OAMADDR/OAMDATA")
+{
+    constexpr uint16 oamAddr = 0x2003;
+    constexpr uint16 oamData = 0x2004;
+    Ppu              ppu;
+
+    SUBCASE("OAMADDR write sets internal address") {
+        ppu.write(oamAddr, 0x10);
+
+        CHECK((ppu.read(oamAddr) == 0x10));
+    }
+
+    SUBCASE("OAMDATA write increments OAMADDR") {
+        ppu.write(oamAddr, 0x00);
+        ppu.write(oamData, 0xAB);
+
+        CHECK((ppu.read(oamAddr) == 0x01));
+    }
+
+    SUBCASE("OAMDATA write wraps address from 0xFF to 0x00") {
+        ppu.write(oamAddr, 0xFF);
+        ppu.write(oamData, 0xCD);
+
+        CHECK((ppu.read(oamAddr) == 0x00));
+    }
+
+    SUBCASE("OAMDATA read returns byte at current address") {
+        ppu.write(oamAddr, 0x20);
+        ppu.write(oamData, 0x5A);
+        ppu.write(oamAddr, 0x20);
+
+        CHECK((ppu.read(oamData) == 0x5A));
+    }
+}
 }

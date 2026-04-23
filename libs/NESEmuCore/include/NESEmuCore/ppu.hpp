@@ -32,7 +32,7 @@ class Ppu : public BusMappable<Ppu> {
     friend class BusMappable;
 
     static constexpr uint16 ADDRESS_MASK        = 0x3FFF;
-    static constexpr uint8  ADDRESS_MIRROR_MASK = 0b00000111;
+    static constexpr uint8  ADDRESS_MIRROR_MASK = 0b0000'0111;
 
     enum class PpuRegisters : uint8 {
         kPpuCtrl,
@@ -49,39 +49,44 @@ class Ppu : public BusMappable<Ppu> {
         uint8 value{};
 
         // (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-        [[nodiscard]] uint8 baseNametableAddress() const { return value & 0b00000011; }
+        [[nodiscard]] uint8 baseNametableAddress() const { return value & 0b0000'0011; }
 
         // (0: add 1, going across; 1: add 32, going down)
-        [[nodiscard]] bool ramAddressIncrement() const { return value & 0b00000100; }
+        [[nodiscard]] bool ramAddressIncrement() const { return value & 0b0000'0100; }
 
         // (0: $0000; 1: $1000; ignored in 8x16 mode)
-        [[nodiscard]] bool spritePatternTableAddress() const { return value & 0b00001000; }
+        [[nodiscard]] bool spritePatternTableAddress() const { return value & 0b0000'1000; }
 
         // (0: $0000; 1: $1000)
-        [[nodiscard]] bool backgroundPatternTableAddress() const { return value & 0b00010000; }
+        [[nodiscard]] bool backgroundPatternTableAddress() const { return value & 0b0001'0000; }
 
         // (0: 8x8 pixels; 1: 8x16 pixels)
-        [[nodiscard]] bool spriteSize() const { return value & 0b00100000; }
+        [[nodiscard]] bool spriteSize() const { return value & 0b0010'0000; }
 
         // (0: read backdrop from EXT pins; 1: output color on EXT pins)
-        [[nodiscard]] bool masterSlaveSelect() const { return value & 0b01000000; }
+        [[nodiscard]] bool masterSlaveSelect() const { return value & 0b0100'0000; }
 
         // (0: off, 1: on)
-        [[nodiscard]] bool nmiEnable() const { return value & 0b10000000; }
+        [[nodiscard]] bool nmiEnable() const { return value & 0b1000'0000; }
     };
 
-    struct OamData {
-        uint8 y;
-        uint8 tile;
-        uint8 attributes;
-        uint8 x;
+    union Oam {
+        struct OamData {
+            uint8 y;
+            uint8 tile;
+            uint8 attributes;
+            uint8 x;
+        };
+
+        std::array<uint8, 256>  raw;
+        std::array<OamData, 64> data;
     };
 
 public:
     void startup();
     void reset();
     void execute();
-    
+
     [[nodiscard]] const PpuCtrl& ppuCtrl() const { return m_ppuCtrl; }
 
 protected:
@@ -90,10 +95,12 @@ protected:
 
 private:
     std::array<uint8, 0x4000> m_memory{};
-    std::array<OamData, 256>  m_oam{};
     uint8                     m_dataLatch{};
-
-    PpuCtrl m_ppuCtrl{};
+    PpuCtrl                   m_ppuCtrl{};
+    uint8                     m_ppuMask{};
+    uint8                     m_ppuStatus{};
+    uint8                     m_oamAddr{};
+    Oam                       m_oam{};
 };
 }
 
