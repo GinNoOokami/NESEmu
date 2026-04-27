@@ -72,6 +72,34 @@ class Ppu : public BusMappable<Ppu> {
         [[nodiscard]] bool nmiEnable() const { return value & 0b1000'0000; }
     };
 
+    struct PpuMask {
+        uint8 value{};
+
+        // (0: normal color, 1: greyscale)
+        [[nodiscard]] uint8 greyscale() const { return value & 0b0000'0001; }
+
+        // (0: Hide, 1: Show background in leftmost 8 pixels of screen)
+        [[nodiscard]] uint8 backgroundColumnMask() const { return value & 0b0000'0010; }
+
+        // (0: Hide, 1: Show sprites in leftmost 8 pixels of screen)
+        [[nodiscard]] uint8 spriteColumnMask() const { return value & 0b0000'0100; }
+
+        // (0: Disable, 1: Enable)
+        [[nodiscard]] uint8 backgroundEnabled() const { return value & 0b0000'1000; }
+
+        // (0: Disable, 1: Enable)
+        [[nodiscard]] uint8 spriteEnabled() const { return value & 0b0001'0000; }
+
+        // (0: Off, 1: On)
+        [[nodiscard]] uint8 emphasizeRed() const { return value & 0b0010'0000; }
+
+        // (0: Off, 1: On)
+        [[nodiscard]] uint8 emphasizeGreen() const { return value & 0b0100'0000; }
+
+        // (0: Off, 1: On)
+        [[nodiscard]] uint8 emphasizeBlue() const { return value & 0b1000'0000; }
+    };
+
     union Oam {
         struct OamData {
             uint8 y;
@@ -93,6 +121,7 @@ public:
     void execute();
 
     [[nodiscard]] const PpuCtrl& ppuCtrl() const { return m_ppuCtrl; }
+    [[nodiscard]] const PpuMask& ppuMask() const { return m_ppuMask; }
 
 protected:
     [[nodiscard]] uint8 readBus(uint16 address) const;
@@ -102,7 +131,7 @@ private:
     std::array<uint8, 0x4000> m_memory{};
     uint8                     m_dataLatch{};
     PpuCtrl                   m_ppuCtrl{};
-    uint8                     m_ppuMask{};
+    PpuMask                   m_ppuMask{};
     uint8                     m_ppuStatus{};
     uint8                     m_oamAddr{};
     Oam                       m_oam{};

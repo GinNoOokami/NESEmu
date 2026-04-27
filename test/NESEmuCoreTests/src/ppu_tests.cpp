@@ -105,6 +105,124 @@ TEST_CASE("PPUCTRL")
     }
 }
 
+TEST_CASE("PPUMASK")
+{
+    constexpr uint16 ppuMask = 0x2001;
+    PpuBus           ppuBus;
+    Ppu              ppu(ppuBus);
+
+    SUBCASE("write") {
+        SUBCASE("greyscale returns expected") {
+            SUBCASE("disabled") {
+                ppu.write(ppuMask, 0xF0);
+
+                CHECK_FALSE(ppu.ppuMask().greyscale());
+            }
+            SUBCASE("enabled") {
+                ppu.write(ppuMask, 0xF1);
+
+                CHECK(ppu.ppuMask().greyscale());
+            }
+        }
+
+        SUBCASE("backgroundColumnMask returns expected") {
+            SUBCASE("hidden") {
+                ppu.write(ppuMask, 0xF1);
+
+                CHECK_FALSE(ppu.ppuMask().backgroundColumnMask());
+            }
+            SUBCASE("shown") {
+                ppu.write(ppuMask, 0xF2);
+
+                CHECK(ppu.ppuMask().backgroundColumnMask());
+            }
+        }
+        SUBCASE("spriteColumnMask returns expected") {
+            SUBCASE("hidden") {
+                ppu.write(ppuMask, 0xF1);
+
+                CHECK_FALSE(ppu.ppuMask().spriteColumnMask());
+            }
+            SUBCASE("shown") {
+                ppu.write(ppuMask, 0xF4);
+
+                CHECK(ppu.ppuMask().spriteColumnMask());
+            }
+        }
+
+        SUBCASE("backgroundEnabled returns expected") {
+            SUBCASE("disabled") {
+                ppu.write(ppuMask, 0xF3);
+
+                CHECK_FALSE(ppu.ppuMask().backgroundEnabled());
+            }
+            SUBCASE("enabled") {
+                ppu.write(ppuMask, 0xF8);
+
+                CHECK(ppu.ppuMask().backgroundEnabled());
+            }
+        }
+
+        SUBCASE("spriteEnabled returns expected") {
+            SUBCASE("disabled") {
+                ppu.write(ppuMask, 0x0F);
+
+                CHECK_FALSE(ppu.ppuMask().spriteEnabled());
+            }
+            SUBCASE("enabled") {
+                ppu.write(ppuMask, 0x1F);
+
+                CHECK(ppu.ppuMask().spriteEnabled());
+            }
+        }
+
+        SUBCASE("emphasizeRed returns expected") {
+            SUBCASE("disabled") {
+                ppu.write(ppuMask, 0x1F);
+
+                CHECK_FALSE(ppu.ppuMask().emphasizeRed());
+            }
+            SUBCASE("enabled") {
+                ppu.write(ppuMask, 0x2F);
+
+                CHECK(ppu.ppuMask().emphasizeRed());
+            }
+        }
+
+        SUBCASE("emphasizeGreen returns expected") {
+            SUBCASE("disabled") {
+                ppu.write(ppuMask, 0x3F);
+
+                CHECK_FALSE(ppu.ppuMask().emphasizeGreen());
+            }
+            SUBCASE("enabled") {
+                ppu.write(ppuMask, 0x4F);
+
+                CHECK(ppu.ppuMask().emphasizeGreen());
+            }
+        }
+
+        SUBCASE("emphasizeBlue returns expected") {
+            SUBCASE("disabled") {
+                ppu.write(ppuMask, 0x7F);
+
+                CHECK_FALSE(ppu.ppuMask().emphasizeBlue());
+            }
+            SUBCASE("enabled") {
+                ppu.write(ppuMask, 0x8F);
+
+                CHECK(ppu.ppuMask().emphasizeBlue());
+            }
+        }
+    }
+
+    SUBCASE("reads open bus latch") {
+        ppu.write(ppuMask, 0x55);
+
+        CHECK((ppu.read(ppuMask) == 0x55));
+    }
+}
+
 TEST_CASE("OAMADDR/OAMDATA")
 {
     constexpr uint16 oamAddr = 0x2003;

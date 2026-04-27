@@ -14,9 +14,10 @@ uint8 Ppu::readBus(uint16 address) const
 {
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
         case PpuRegisters::kPpuCtrl:
-            return m_dataLatch;
         case PpuRegisters::kPpuMask:
+            return m_dataLatch;
         case PpuRegisters::kPpuStatus:
+            break;
         case PpuRegisters::kOamAddr:
             return m_oamAddr;
         case PpuRegisters::kOamData:
@@ -40,6 +41,8 @@ void Ppu::writeBus(const uint16 address, const uint8 data)
             m_ppuCtrl.value = data;
             break;
         case PpuRegisters::kPpuMask:
+            m_ppuMask.value = data;
+            break;
         case PpuRegisters::kPpuStatus:
         case PpuRegisters::kOamAddr:
             m_oamAddr = data;
