@@ -33,6 +33,11 @@ class Ppu : public BusMappable<Ppu> {
     template <typename>
     friend class BusMappable;
 
+    static constexpr int kFrameVisibleStart    = 0;
+    static constexpr int kFramePostRenderStart = 240;
+    static constexpr int kFrameVBlankStart     = 241;
+    static constexpr int kFramePreRenderStart  = 261;
+
     static constexpr uint16 ADDRESS_MASK        = 0x3FFF;
     static constexpr uint8  ADDRESS_MIRROR_MASK = 0b0000'0111;
 
@@ -75,6 +80,8 @@ class Ppu : public BusMappable<Ppu> {
     struct PpuMask {
         uint8 value{};
 
+        [[nodiscard]] bool isRenderingEnabled() const { return value & 0b0001'1000; }
+
         // (0: normal color, 1: greyscale)
         [[nodiscard]] uint8 greyscale() const { return value & 0b0000'0001; }
 
@@ -100,6 +107,17 @@ class Ppu : public BusMappable<Ppu> {
         [[nodiscard]] uint8 emphasizeBlue() const { return value & 0b1000'0000; }
     };
 
+    struct PpuStatus {
+        [[nodiscard]] uint8 status() const { return value & 0b1110'0000; }
+
+        // (0: Off, 1: On)
+        [[nodiscard]] uint8 vBlank() const { return value & 0b1000'0000; }
+        void                vBlank(const bool enable) { value = (value & ~0b1000'0000) | (enable << 7); }
+
+    private:
+        uint8 value{};
+    };
+
     union Oam {
         struct OamData {
             uint8 y;
@@ -113,30 +131,41 @@ class Ppu : public BusMappable<Ppu> {
     };
 
 public:
+    static constexpr int kFrameScanlineWidth = 341;
+    static constexpr int kFrameScanlineMax   = 262;
+    static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
+
     explicit Ppu(PpuBus& ppuBus)
         : m_ppuBus(ppuBus) {}
 
     void startup();
     void reset();
-    void execute();
+    void execute(int cycles);
 
-    [[nodiscard]] const PpuCtrl& ppuCtrl() const { return m_ppuCtrl; }
-    [[nodiscard]] const PpuMask& ppuMask() const { return m_ppuMask; }
+    [[nodiscard]] const PpuCtrl&   ppuCtrl() const { return m_ppuCtrl; }
+    [[nodiscard]] const PpuMask&   ppuMask() const { return m_ppuMask; }
+    [[nodiscard]] const PpuStatus& ppuStatus() const { return m_ppuStatus; }
 
 protected:
     [[nodiscard]] uint8 readBus(uint16 address) const;
     void                writeBus(uint16 address, uint8 data);
 
 private:
-    std::array<uint8, 0x4000> m_memory{};
-    uint8                     m_dataLatch{};
-    PpuCtrl                   m_ppuCtrl{};
-    PpuMask                   m_ppuMask{};
-    uint8                     m_ppuStatus{};
-    uint8                     m_oamAddr{};
-    Oam                       m_oam{};
+    void advanceScanline();
+
+private:
+    // MMIO registers
+    PpuCtrl   m_ppuCtrl{};
+    PpuMask   m_ppuMask{};
+    PpuStatus m_ppuStatus{};
+    uint8     m_oamAddr{};
+    Oam       m_oam{};
 
     PpuBus& m_ppuBus;
+    uint8   m_dataLatch{};
+
+    uint16 m_pixelCount;
+    uint16 m_scanline;
 };
 }
 

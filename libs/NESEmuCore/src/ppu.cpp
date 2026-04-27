@@ -6,18 +6,31 @@ using namespace NESEmu;
 
 void Ppu::startup() {}
 
-void Ppu::reset() {}
+void Ppu::reset()
+{
+    m_pixelCount = 0;
+    m_scanline   = 0;
+}
 
-void Ppu::execute() {}
+void Ppu::execute(const int cycles)
+{
+    for (int i = 0; i < cycles; ++i) {
+        m_pixelCount++;
+        if (m_pixelCount >= kFrameScanlineWidth) {
+            m_pixelCount = 0;
+            advanceScanline();
+        }
+    }
+}
 
-uint8 Ppu::readBus(uint16 address) const
+uint8 Ppu::readBus(const uint16 address) const
 {
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
         case PpuRegisters::kPpuCtrl:
         case PpuRegisters::kPpuMask:
             return m_dataLatch;
         case PpuRegisters::kPpuStatus:
-            break;
+            return m_ppuStatus.status() | (m_dataLatch & 0x1F);
         case PpuRegisters::kOamAddr:
             return m_oamAddr;
         case PpuRegisters::kOamData:
@@ -44,6 +57,7 @@ void Ppu::writeBus(const uint16 address, const uint8 data)
             m_ppuMask.value = data;
             break;
         case PpuRegisters::kPpuStatus:
+            break;
         case PpuRegisters::kOamAddr:
             m_oamAddr = data;
             break;
@@ -56,5 +70,27 @@ void Ppu::writeBus(const uint16 address, const uint8 data)
             break;
         default:
             assert(false && "Invalid PPU write address");
+    }
+}
+
+void Ppu::advanceScanline()
+{
+    // Check for scanline rollover
+    if (m_scanline == kFramePreRenderStart) {
+        m_scanline = -1;
+    }
+
+    m_scanline++;
+
+    switch (m_scanline) {
+        case kFrameVBlankStart:
+            m_ppuStatus.vBlank(true);
+            // TODO: Trigger NMI interrupt on CPU bus
+            break;
+        case kFramePreRenderStart:
+            m_ppuStatus.vBlank(false);
+            break;
+        default:
+            break;
     }
 }

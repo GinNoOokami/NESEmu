@@ -223,6 +223,64 @@ TEST_CASE("PPUMASK")
     }
 }
 
+TEST_CASE("PPUSTATUS")
+{
+    constexpr uint16 ppuStatus = 0x2002;
+    PpuBus           ppuBus;
+    Ppu              ppu(ppuBus);
+
+    SUBCASE("write does not affect register bits") {
+        ppu.write(ppuStatus, 0xFF);
+
+        CHECK(((ppu.read(ppuStatus) & 0x1110'0000) == 0));
+    }
+
+    SUBCASE("write returns open data latch on non-register bits") {
+        ppu.write(ppuStatus, 0xFF);
+
+        // Lower 5 bits should return open bus data latch, which is set during the write
+        CHECK((ppu.read(ppuStatus) == 0x1F));
+    }
+
+    SUBCASE("read vSync") {
+        SUBCASE("on first visible frame (scanline 0) is unset") {
+            ppu.reset();
+
+            ppu.execute(1);
+
+            CHECK_FALSE(ppu.ppuStatus().vBlank());
+        }
+
+        SUBCASE("on first post-render frame (scanline 240) is unset") {
+            ppu.reset();
+
+            ppu.execute(Ppu::kFrameScanlineWidth * 240);
+
+            CHECK_FALSE(ppu.ppuStatus().vBlank());
+        }
+
+        SUBCASE("on first vBlank frame (scanline 241) is set") {
+            ppu.reset();
+
+            // Although we aren't accounting for it right now, technically
+            // the vBlank flag is set on the first non-idle cycle of the scanline
+            ppu.execute(Ppu::kFrameScanlineWidth * 241 + 1);
+
+            CHECK(ppu.ppuStatus().vBlank());
+        }
+
+        SUBCASE("on pre-render frame (scanline 261) is unset") {
+            ppu.reset();
+
+            // Although we aren't accounting for it right now, technically
+            // the vBlank flag is set on the first non-idle cycle of the scanline
+            ppu.execute(Ppu::kFrameScanlineWidth * 261 + 1);
+
+            CHECK_FALSE(ppu.ppuStatus().vBlank());
+        }
+    }
+}
+
 TEST_CASE("OAMADDR/OAMDATA")
 {
     constexpr uint16 oamAddr = 0x2003;
