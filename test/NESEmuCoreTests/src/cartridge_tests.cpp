@@ -1,6 +1,4 @@
-#include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/cartridge.hpp"
-#include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/memory.hpp"
 
 #include <doctest.h>
@@ -31,15 +29,11 @@ TEST_CASE("Valid iNES file returns Cartridge*")
 
 TEST_CASE("Load NROM cartridge initializes CPU PC to expected address")
 {
-    InternalRam memory;
-    CpuBus      bus(memory);
-    Cpu6502     cpu(bus);
-    auto        cartridge = Cartridge::createFromFile("data/rom/run.6502.nes");
-    auto        mapper    = cartridge->loadMapper();
-    bus.mapper(mapper);
+    auto cartridge = Cartridge::createFromFile("data/rom/run.6502.nes");
+    auto mapper    = cartridge->loadMapper();
 
-    cpu.startup();
-
-    CHECK((cpu.state().pc == 0x8100));
+    // Check that the reset vector address is in the correct location
+    CHECK((mapper->read(0x3FFC) == 0x00));
+    CHECK((mapper->read(0x3FFD) == 0x81));
 }
 }

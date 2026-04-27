@@ -13,7 +13,7 @@ using namespace NESEmu;
 TEST_CASE("CPU Init State")
 {
     InternalRam memory;
-    CpuBus  bus(memory);
+    CpuBus      bus(memory);
     Cpu6502     cpu(bus);
     cpu.startup();
 
@@ -22,6 +22,19 @@ TEST_CASE("CPU Init State")
     CHECK_EQ(cpu.state().a, 0);
     CHECK_EQ(cpu.state().x, 0);
     CHECK_EQ(cpu.state().y, 0);
+}
+
+TEST_CASE("CPU reads reset vector on startup")
+{
+    TestBus bus;
+    Cpu6502 cpu(bus);
+
+    bus.write(0xFFFC, 0xF0);
+    bus.write(0xFFFD, 0x81);
+
+    cpu.startup();
+
+    CHECK((cpu.state().pc == 0x81F0));
 }
 
 std::string createTestName(const std::string& instructionDesc, const CpuStepTest& test)
