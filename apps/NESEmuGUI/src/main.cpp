@@ -10,7 +10,7 @@ using namespace NESEmu;
 int main()
 {
     InternalRam   memory;
-    DefaultBus    bus(memory);
+    CpuBus    bus(memory);
     const Cpu6502 cpu(bus);
 
     SDL_Init(SDL_INIT_VIDEO);

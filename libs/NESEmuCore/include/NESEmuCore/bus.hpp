@@ -34,8 +34,9 @@ namespace NESEmu {
 class InternalRam;
 
 enum BusType {
-    kBusDefault,
-    kBusTest,
+    kCpuBus,
+    kPpuBus,
+    kTestBus,
     kMaxBusTypes
 };
 
@@ -51,6 +52,8 @@ protected:
     using writeFn                                 = void (*)(Bus&, uint16, uint8);
     inline static readFn  m_readFn[kMaxBusTypes]  = {};
     inline static writeFn m_writeFn[kMaxBusTypes] = {};
+
+    uint8 m_openBusData = 0;
 
     const BusType type;
 };
@@ -81,7 +84,7 @@ protected:
 template <class T, BusType TBus>
 const BusType BusCRTP<T, TBus>::type = Register();
 
-class DefaultBus : public BusCRTP<DefaultBus, kBusDefault> {
+class CpuBus : public BusCRTP<CpuBus, kCpuBus> {
     static constexpr uint16 ADDRESS_MASK           = 0b1110000000000000;
     static constexpr uint16 MEMORY_ENABLE_MASK     = 0b0000000000000000; // $0000–$1FFF
     static constexpr uint16 PPU_ENABLE_MASK        = 0b0010000000000000; // $2000–$3FFF
@@ -93,7 +96,7 @@ class DefaultBus : public BusCRTP<DefaultBus, kBusDefault> {
     static constexpr uint16 CARTRIDGE4_ENABLE_MASK = 0b1110000000000000; // $8000-$FFFF
 
 public:
-    explicit DefaultBus(InternalRam& memory) : m_memory(memory), m_mapper(nullptr) {}
+    explicit CpuBus(InternalRam& memory) : m_memory(memory), m_mapper(nullptr) {}
 
     [[nodiscard]] uint8 read(uint16 address);
     void                write(uint16 address, uint8 data);
@@ -103,8 +106,13 @@ private:
     InternalRam& m_memory;
 
     MapperNRom* m_mapper;
+};
 
-    uint8 m_openBusData = 0;
+
+class PpuBus : public BusCRTP<PpuBus, kPpuBus> {
+public:
+    [[nodiscard]] uint8 read(uint16 address);
+    void                write(uint16 address, uint8 data);
 };
 }
 

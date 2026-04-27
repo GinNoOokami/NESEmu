@@ -4,7 +4,7 @@
 
 using namespace NESEmu;
 
-uint8 DefaultBus::read(const uint16 address)
+uint8 CpuBus::read(const uint16 address)
 {
     uint8 data = m_openBusData;
 
@@ -27,14 +27,26 @@ uint8 DefaultBus::read(const uint16 address)
     return data;
 }
 
-void DefaultBus::write(const uint16 address, const uint8 data)
+void CpuBus::write(const uint16 address, const uint8 data)
 {
+    m_openBusData = data;
+    
     switch (address & ADDRESS_MASK) {
         case MEMORY_ENABLE_MASK:
             m_memory.write(address, data);
-            m_openBusData = data;
             break;
         default:
             break;
     }
+}
+
+
+uint8 PpuBus::read(const uint16 address)
+{
+    return m_openBusData;
+}
+
+void PpuBus::write(uint16 address, uint8 data)
+{
+    m_openBusData = data;
 }

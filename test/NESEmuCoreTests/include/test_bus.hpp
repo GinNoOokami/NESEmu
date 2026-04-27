@@ -4,7 +4,7 @@
 #include "NESEmuCore/bus.hpp"
 
 namespace NESEmu {
-class TestBus : public BusCRTP<TestBus, kBusTest> {
+class TestBus : public BusCRTP<TestBus, kTestBus> {
 public:
     [[nodiscard]] uint8 read(uint16_t address) { return m_memory[address]; }
     void                write(uint16 address, uint8 data) { m_memory[address] = data; }

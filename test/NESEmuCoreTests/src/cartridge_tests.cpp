@@ -32,7 +32,7 @@ TEST_CASE("Valid iNES file returns Cartridge*")
 TEST_CASE("Load NROM cartridge initializes CPU PC to expected address")
 {
     InternalRam memory;
-    DefaultBus  bus(memory);
+    CpuBus      bus(memory);
     Cpu6502     cpu(bus);
     auto        cartridge = Cartridge::createFromFile("data/rom/run.6502.nes");
     auto        mapper    = cartridge->loadMapper();

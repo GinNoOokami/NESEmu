@@ -27,6 +27,8 @@ x2 - Internal 2-byte state accessed by two 1-byte accesses
 */
 
 namespace NESEmu {
+class PpuBus;
+
 class Ppu : public BusMappable<Ppu> {
     template <typename>
     friend class BusMappable;
@@ -83,6 +85,9 @@ class Ppu : public BusMappable<Ppu> {
     };
 
 public:
+    explicit Ppu(PpuBus& ppuBus)
+        : m_ppuBus(ppuBus) {}
+
     void startup();
     void reset();
     void execute();
@@ -101,6 +106,8 @@ private:
     uint8                     m_ppuStatus{};
     uint8                     m_oamAddr{};
     Oam                       m_oam{};
+
+    PpuBus& m_ppuBus;
 };
 }
 

@@ -1,4 +1,5 @@
 #include "NESEmuCore/ppu.hpp"
+#include "NESEmuCore/bus.hpp"
 
 #include <doctest.h>
 
@@ -8,7 +9,8 @@ TEST_SUITE("PPU Tests") {
 TEST_CASE("PPUCTRL")
 {
     constexpr uint16 ppuCtrl = 0x2000;
-    Ppu              ppu;
+    PpuBus           ppuBus;
+    Ppu              ppu(ppuBus);
 
     SUBCASE("write") {
         SUBCASE("baseNametableAddress returns expected") {
@@ -107,7 +109,8 @@ TEST_CASE("OAMADDR/OAMDATA")
 {
     constexpr uint16 oamAddr = 0x2003;
     constexpr uint16 oamData = 0x2004;
-    Ppu              ppu;
+    PpuBus           ppuBus;
+    Ppu              ppu(ppuBus);
 
     SUBCASE("OAMADDR write sets internal address") {
         ppu.write(oamAddr, 0x10);

@@ -13,7 +13,7 @@ using namespace NESEmu;
 TEST_CASE("CPU Init State")
 {
     InternalRam memory;
-    DefaultBus  bus(memory);
+    CpuBus  bus(memory);
     Cpu6502     cpu(bus);
     cpu.startup();
 
