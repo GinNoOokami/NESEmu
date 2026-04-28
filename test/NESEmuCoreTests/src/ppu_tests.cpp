@@ -1,5 +1,6 @@
 #include "NESEmuCore/ppu.hpp"
 #include "NESEmuCore/bus.hpp"
+#include "NESEmuCore/interrupt_lines.hpp"
 
 #include <doctest.h>
 
@@ -10,7 +11,8 @@ TEST_CASE("PPUCTRL")
 {
     constexpr uint16 ppuCtrl = 0x2000;
     PpuBus           ppuBus;
-    Ppu              ppu(ppuBus);
+    InterruptLines   interruptLines{};
+    Ppu              ppu(ppuBus, interruptLines);
 
     SUBCASE("write") {
         SUBCASE("baseNametableAddress returns expected") {
@@ -109,7 +111,8 @@ TEST_CASE("PPUMASK")
 {
     constexpr uint16 ppuMask = 0x2001;
     PpuBus           ppuBus;
-    Ppu              ppu(ppuBus);
+    InterruptLines   interruptLines{};
+    Ppu              ppu(ppuBus, interruptLines);
 
     SUBCASE("write") {
         SUBCASE("greyscale returns expected") {
@@ -227,7 +230,8 @@ TEST_CASE("PPUSTATUS")
 {
     constexpr uint16 ppuStatus = 0x2002;
     PpuBus           ppuBus;
-    Ppu              ppu(ppuBus);
+    InterruptLines   interruptLines{};
+    Ppu              ppu(ppuBus, interruptLines);
 
     SUBCASE("write does not affect register bits") {
         ppu.write(ppuStatus, 0xFF);
@@ -242,7 +246,7 @@ TEST_CASE("PPUSTATUS")
         CHECK((ppu.read(ppuStatus) == 0x1F));
     }
 
-    SUBCASE("read vSync") {
+    SUBCASE("read vBlank") {
         SUBCASE("on first visible frame (scanline 0) is unset") {
             ppu.reset();
 
@@ -286,7 +290,8 @@ TEST_CASE("OAMADDR/OAMDATA")
     constexpr uint16 oamAddr = 0x2003;
     constexpr uint16 oamData = 0x2004;
     PpuBus           ppuBus;
-    Ppu              ppu(ppuBus);
+    InterruptLines   interruptLines{};
+    Ppu              ppu(ppuBus, interruptLines);
 
     SUBCASE("OAMADDR write sets internal address") {
         ppu.write(oamAddr, 0x10);
@@ -314,6 +319,35 @@ TEST_CASE("OAMADDR/OAMDATA")
         ppu.write(oamAddr, 0x20);
 
         CHECK((ppu.read(oamData) == 0x5A));
+    }
+}
+
+TEST_CASE("NMI interrupt")
+{
+    SUBCASE("when enabled triggers on first vBlank scanline") {
+        PpuBus         ppuBus;
+        InterruptLines interruptLines;
+        Ppu            ppu(ppuBus, interruptLines);
+
+        // Ensure NMI is enabled
+        ppu.write(0x2000, 0x80);
+
+        ppu.execute(Ppu::kFrameScanlineWidth * 241 + 1);
+
+        CHECK(interruptLines.nmiActive);
+    }
+
+    SUBCASE("when disabled does not trigger on first vBlank scanline") {
+        PpuBus         ppuBus;
+        InterruptLines interruptLines;
+        Ppu            ppu(ppuBus, interruptLines);
+
+        // Ensure NMI is disabled
+        ppu.write(0x2000, 0x00);
+
+        ppu.execute(Ppu::kFrameScanlineWidth * 241 + 1);
+
+        CHECK_FALSE(interruptLines.nmiActive);
     }
 }
 }

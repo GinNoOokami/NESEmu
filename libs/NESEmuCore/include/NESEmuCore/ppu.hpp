@@ -26,8 +26,10 @@ W - Writeable
 x2 - Internal 2-byte state accessed by two 1-byte accesses
 */
 
+
 namespace NESEmu {
 class PpuBus;
+struct InterruptLines;
 
 class Ppu : public BusMappable<Ppu> {
     template <typename>
@@ -135,8 +137,7 @@ public:
     static constexpr int kFrameScanlineMax   = 262;
     static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
 
-    explicit Ppu(PpuBus& ppuBus)
-        : m_ppuBus(ppuBus) {}
+    explicit Ppu(PpuBus& ppuBus, InterruptLines& interruptLines);
 
     void startup();
     void reset();
@@ -151,9 +152,12 @@ protected:
     void                writeBus(uint16 address, uint8 data);
 
 private:
-    void advanceScanline();
+    inline void advanceScanline();
 
 private:
+    PpuBus&         m_ppuBus;
+    InterruptLines& m_interruptLines;
+
     // MMIO registers
     PpuCtrl   m_ppuCtrl{};
     PpuMask   m_ppuMask{};
@@ -161,11 +165,9 @@ private:
     uint8     m_oamAddr{};
     Oam       m_oam{};
 
-    PpuBus& m_ppuBus;
-    uint8   m_dataLatch{};
-
-    uint16 m_pixelCount;
-    uint16 m_scanline;
+    uint8  m_dataLatch{};
+    uint16 m_pixelCount{};
+    uint16 m_scanline{};
 };
 }
 

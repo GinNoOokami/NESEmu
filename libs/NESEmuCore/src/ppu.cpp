@@ -1,8 +1,13 @@
 #include "NESEmuCore/ppu.hpp"
 
+#include "NESEmuCore/interrupt_lines.hpp"
+
 #include <cassert>
 
 using namespace NESEmu;
+
+Ppu::Ppu(PpuBus& ppuBus, InterruptLines& interruptLines)
+    : m_ppuBus(ppuBus), m_interruptLines(interruptLines) {}
 
 void Ppu::startup() {}
 
@@ -85,7 +90,9 @@ void Ppu::advanceScanline()
     switch (m_scanline) {
         case kFrameVBlankStart:
             m_ppuStatus.vBlank(true);
-            // TODO: Trigger NMI interrupt on CPU bus
+            if (m_ppuCtrl.nmiEnable()) {
+                m_interruptLines.nmiActive = true;
+            }
             break;
         case kFramePreRenderStart:
             m_ppuStatus.vBlank(false);

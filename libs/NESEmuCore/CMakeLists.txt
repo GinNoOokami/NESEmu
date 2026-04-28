@@ -20,6 +20,7 @@ target_sources(NESEmuCore
             include/NESEmuCore/cpu6502.hpp
             include/NESEmuCore/debug_format.hpp
             include/NESEmuCore/emu_types.hpp
+            include/NESEmuCore/interrupt_lines.hpp
             include/NESEmuCore/mapper_nrom.hpp
             include/NESEmuCore/memory.hpp
             include/NESEmuCore/ppu.hpp
