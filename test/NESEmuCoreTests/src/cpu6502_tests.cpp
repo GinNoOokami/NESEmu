@@ -77,7 +77,7 @@ TEST_CASE("PC reads reset vector on startup")
 
     cpu.startup();
 
-    CHECK((cpu.state().pc == 0x81F0));
+    CHECK_EQ(cpu.state().pc, 0x81F0);
 }
 
 TEST_CASE("NMI interrupts")

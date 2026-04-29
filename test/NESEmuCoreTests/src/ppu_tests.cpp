@@ -18,30 +18,36 @@ TEST_CASE("PPUCTRL")
         SUBCASE("baseNametableAddress returns expected") {
             SUBCASE("$2000") {
                 ppu.write(ppuCtrl, 0xF0);
-                CHECK((ppu.ppuCtrl().baseNametableAddress() == 0));
+
+                CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 0);
             }
             SUBCASE("$2400") {
                 ppu.write(ppuCtrl, 0xF1);
-                CHECK((ppu.ppuCtrl().baseNametableAddress() == 1));
+
+                CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 1);
             }
 
             SUBCASE("$2800") {
                 ppu.write(ppuCtrl, 0xF2);
-                CHECK((ppu.ppuCtrl().baseNametableAddress() == 2));
+
+                CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 2);
             }
             SUBCASE("$2C00") {
                 ppu.write(ppuCtrl, 0xF3);
-                CHECK((ppu.ppuCtrl().baseNametableAddress() == 3));
+
+                CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 3);
             }
         }
 
         SUBCASE("ramAddressIncrement returns expected") {
             SUBCASE("across") {
                 ppu.write(ppuCtrl, 0xFB);
+
                 CHECK_FALSE(ppu.ppuCtrl().ramAddressIncrement());
             }
             SUBCASE("down") {
                 ppu.write(ppuCtrl, 0xF4);
+
                 CHECK(ppu.ppuCtrl().ramAddressIncrement());
             }
         }
@@ -49,10 +55,12 @@ TEST_CASE("PPUCTRL")
         SUBCASE("spritePatternTableAddress returns expected") {
             SUBCASE("$0000") {
                 ppu.write(ppuCtrl, 0xF7);
+
                 CHECK_FALSE(ppu.ppuCtrl().spritePatternTableAddress());
             }
             SUBCASE("$1000") {
                 ppu.write(ppuCtrl, 0xF8);
+
                 CHECK(ppu.ppuCtrl().spritePatternTableAddress());
             }
         }
@@ -60,10 +68,12 @@ TEST_CASE("PPUCTRL")
         SUBCASE("backgroundPatternTableAddress returns expected") {
             SUBCASE("$0000") {
                 ppu.write(ppuCtrl, 0xEF);
+
                 CHECK_FALSE(ppu.ppuCtrl().backgroundPatternTableAddress());
             }
             SUBCASE("$1000") {
                 ppu.write(ppuCtrl, 0xFF);
+
                 CHECK(ppu.ppuCtrl().backgroundPatternTableAddress());
             }
         }
@@ -71,10 +81,12 @@ TEST_CASE("PPUCTRL")
         SUBCASE("spriteSize returns expected") {
             SUBCASE("8x8") {
                 ppu.write(ppuCtrl, 0xDF);
+
                 CHECK_FALSE(ppu.ppuCtrl().spriteSize());
             }
             SUBCASE("8x16") {
                 ppu.write(ppuCtrl, 0x7F);
+
                 CHECK(ppu.ppuCtrl().spriteSize());
             }
         }
@@ -82,6 +94,7 @@ TEST_CASE("PPUCTRL")
         SUBCASE("masterSlaveSelect returns expected") {
             SUBCASE("read backdrop") {
                 ppu.write(ppuCtrl, 0xAF);
+
                 CHECK_FALSE(ppu.ppuCtrl().masterSlaveSelect());
             }
             SUBCASE("output color") {
@@ -93,17 +106,20 @@ TEST_CASE("PPUCTRL")
         SUBCASE("enableNmi returns expected") {
             SUBCASE("disabled") {
                 ppu.write(ppuCtrl, 0x7F);
+
                 CHECK_FALSE(ppu.ppuCtrl().nmiEnable());
             }
             SUBCASE("enabled") {
                 ppu.write(ppuCtrl, 0xFF);
+
                 CHECK(ppu.ppuCtrl().nmiEnable());
             }
         }
     }
     SUBCASE("reads open bus latch") {
         ppu.write(ppuCtrl, 0x55);
-        CHECK((ppu.read(ppuCtrl) == 0x55));
+
+        CHECK_EQ(ppu.read(ppuCtrl), 0x55);
     }
 }
 
@@ -222,7 +238,7 @@ TEST_CASE("PPUMASK")
     SUBCASE("reads open bus latch") {
         ppu.write(ppuMask, 0x55);
 
-        CHECK((ppu.read(ppuMask) == 0x55));
+        CHECK_EQ(ppu.read(ppuMask), 0x55);
     }
 }
 
@@ -236,14 +252,14 @@ TEST_CASE("PPUSTATUS")
     SUBCASE("write does not affect register bits") {
         ppu.write(ppuStatus, 0xFF);
 
-        CHECK(((ppu.read(ppuStatus) & 0x1110'0000) == 0));
+        CHECK_EQ(ppu.read(ppuStatus) & 0x1110'0000, 0);
     }
 
     SUBCASE("write returns open data latch on non-register bits") {
         ppu.write(ppuStatus, 0xFF);
 
         // Lower 5 bits should return open bus data latch, which is set during the write
-        CHECK((ppu.read(ppuStatus) == 0x1F));
+        CHECK_EQ(ppu.read(ppuStatus), 0x1F);
     }
 
     SUBCASE("read vBlank") {
