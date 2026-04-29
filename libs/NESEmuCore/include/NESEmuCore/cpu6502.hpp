@@ -12,6 +12,7 @@
 
 namespace NESEmu {
 class Bus;
+struct InterruptLines;
 
 class Cpu6502 {
     static constexpr uint16 kVecNmi   = 0xFFFA;
@@ -41,7 +42,7 @@ public:
         uint8  p;
     };
 
-    explicit Cpu6502(Bus& bus);
+    explicit Cpu6502(Bus& bus, InterruptLines& interruptLines);
     ~Cpu6502();
 
     void startup();
@@ -65,6 +66,9 @@ private:
 
     inline void  pushStack(uint8 value);
     inline uint8 popStack();
+
+    // Interrupts
+    void processNmi();
 
     // Addressing modes
     static constexpr int kModeReadOnly  = 0;
@@ -265,11 +269,12 @@ private:
     State m_state{};
 
     // Internal state
-    uint16 m_address = 0;
-    uint8  m_data    = 0;
-    uint32 m_cycles  = 0;
+    uint16 m_address{};
+    uint8  m_data{};
+    uint32 m_cycles{};
 
-    Bus& m_bus;
+    Bus&            m_bus;
+    InterruptLines& m_interruptLines;
 };
 
 bool operator==(const Cpu6502::State& lhs, const Cpu6502::State& rhs);

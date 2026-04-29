@@ -90,9 +90,7 @@ void Ppu::advanceScanline()
     switch (m_scanline) {
         case kFrameVBlankStart:
             m_ppuStatus.vBlank(true);
-            if (m_ppuCtrl.nmiEnable()) {
-                m_interruptLines.nmiActive = true;
-            }
+            m_interruptLines.nmiActive = m_ppuCtrl.nmiEnable();
             break;
         case kFramePreRenderStart:
             m_ppuStatus.vBlank(false);

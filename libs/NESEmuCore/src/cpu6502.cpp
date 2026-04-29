@@ -3,11 +3,12 @@
 #include <stdexcept>
 
 #include "NESEmuCore/bus.hpp"
+#include "NESEmuCore/interrupt_lines.hpp"
 
 using namespace NESEmu;
 
-Cpu6502::Cpu6502(Bus& bus)
-    : m_bus(bus)
+Cpu6502::Cpu6502(Bus& bus, InterruptLines& interruptLines)
+    : m_bus(bus), m_interruptLines(interruptLines)
 {
     m_opcodeHandlers[0x00] = &Cpu6502::opBRK;
     m_opcodeHandlers[0x01] = &Cpu6502::opORA_ind_X;
@@ -311,8 +312,12 @@ void Cpu6502::reset()
 
 void Cpu6502::execute()
 {
-    const uint8 opcode = readMemory(m_state.pc++);
+    if (m_interruptLines.nmiActive) {
+        processNmi();
+        return;
+    }
 
+    const uint8 opcode = readMemory(m_state.pc++);
     (this->*m_opcodeHandlers[opcode])();
 }
 
@@ -342,6 +347,26 @@ uint8 Cpu6502::popStack()
 {
     ++m_state.sp;
     return readMemory(kStackAddr + m_state.sp);
+}
+
+void Cpu6502::processNmi()
+{
+    addressModeImplied();
+
+    const uint16 pc = m_state.pc + 1;
+    const uint8  p  = m_state.p & 0b11001111 | 0b00100000;
+
+    pushStack(static_cast<uint8>(pc >> 8));
+    pushStack(static_cast<uint8>(pc));
+    pushStack(p);
+
+    setRegister(I, true);
+
+    const uint8 lo = readMemory(kVecNmi);
+    const uint8 hi = readMemory(kVecNmi + 1);
+
+    m_interruptLines.nmiActive = false;
+    m_state.pc                 = hi << 8 | lo;
 }
 
 void Cpu6502::addressModeImplied()
