@@ -10,7 +10,7 @@ NESEmu::MapperNRom::MapperNRom(std::ifstream& file, const uint8 offset, const ui
     file.read(reinterpret_cast<char*>(m_chrRom.data()), chrRomSize);
 }
 
-NESEmu::uint8 NESEmu::MapperNRom::readBus(const uint16 address) const
+NESEmu::uint8 NESEmu::MapperNRom::readBus(const uint16 address)
 {
     return m_prgRom[address & m_prgRomMask];
 }

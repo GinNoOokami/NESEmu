@@ -19,7 +19,7 @@ public:
     MapperNRom(std::ifstream& file, uint8 offset, uint16 prgRomSize, uint16 chrRomSize);
 
 protected:
-    [[nodiscard]] uint8 readBus(uint16 address) const;
+    [[nodiscard]] uint8 readBus(uint16 address);
     void                writeBus(const uint16 address, const uint8 data) { m_prgRom[address] = data; }
 
 private:

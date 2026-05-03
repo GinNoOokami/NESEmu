@@ -13,29 +13,29 @@ void Ppu::startup() {}
 
 void Ppu::reset()
 {
-    m_pixelCount = 0;
-    m_scanline   = 0;
+    m_dotCycle = 0;
+    m_scanline = 0;
 }
 
-void Ppu::execute(const int cycles)
+void Ppu::execute(const int ppuCycles)
 {
-    for (int i = 0; i < cycles; ++i) {
-        m_pixelCount++;
-        if (m_pixelCount >= kFrameScanlineWidth) {
-            m_pixelCount = 0;
+    for (int i = 0; i < ppuCycles; ++i) {
+        m_dotCycle++;
+        if (m_dotCycle >= kFrameScanlineWidth) {
+            m_dotCycle = 0;
             advanceScanline();
         }
     }
 }
 
-uint8 Ppu::readBus(const uint16 address) const
+uint8 Ppu::readBus(const uint16 address)
 {
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
         case PpuRegisters::kPpuCtrl:
         case PpuRegisters::kPpuMask:
             return m_dataLatch;
         case PpuRegisters::kPpuStatus:
-            return m_ppuStatus.status() | (m_dataLatch & 0x1F);
+            return readStatus();
         case PpuRegisters::kOamAddr:
             return m_oamAddr;
         case PpuRegisters::kOamData:
@@ -78,22 +78,25 @@ void Ppu::writeBus(const uint16 address, const uint8 data)
     }
 }
 
+uint8 Ppu::readStatus()
+{
+    uint8 status = m_ppuStatus.status() | (m_dataLatch & 0x1F);
+    m_ppuStatus.vBlank(false);
+    return status;
+}
+
 void Ppu::advanceScanline()
 {
-    // Check for scanline rollover
-    if (m_scanline == kFramePreRenderStart) {
-        m_scanline = -1;
-    }
-
-    m_scanline++;
-
-    switch (m_scanline) {
+    switch (++m_scanline) {
         case kFrameVBlankStart:
             m_ppuStatus.vBlank(true);
             m_interruptLines.nmiActive = m_ppuCtrl.nmiEnable();
             break;
         case kFramePreRenderStart:
             m_ppuStatus.vBlank(false);
+            break;
+        case kFrameScanlineMax:
+            m_scanline = 0;
             break;
         default:
             break;

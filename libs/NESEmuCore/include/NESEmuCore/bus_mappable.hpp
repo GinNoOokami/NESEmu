@@ -7,7 +7,7 @@ namespace NESEmu {
 template <typename TMapper>
 class BusMappable {
 public:
-    [[nodiscard]] uint8 read(const uint16 address) const { return static_cast<const TMapper&>(*this).readBus(address); }
+    [[nodiscard]] uint8 read(const uint16 address) { return static_cast<TMapper&>(*this).readBus(address); }
     void                write(const uint16 address, const uint8 data) { static_cast<TMapper&>(*this).writeBus(address, data); }
 };
 }

@@ -133,6 +133,10 @@ class Ppu : public BusMappable<Ppu> {
     };
 
 public:
+    using PaletteIndex = uint8;
+
+    static constexpr int kScreenDotWidth     = 256;
+    static constexpr int kScreenDotHeight    = 240;
     static constexpr int kFrameScanlineWidth = 341;
     static constexpr int kFrameScanlineMax   = 262;
     static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
@@ -141,18 +145,21 @@ public:
 
     void startup();
     void reset();
-    void execute(int cycles);
+
+    // The PPU runs at 3x the CPU clock on NTSC; the caller is responsible for the multiply.
+    void execute(int ppuCycles);
 
     [[nodiscard]] const PpuCtrl&   ppuCtrl() const { return m_ppuCtrl; }
     [[nodiscard]] const PpuMask&   ppuMask() const { return m_ppuMask; }
     [[nodiscard]] const PpuStatus& ppuStatus() const { return m_ppuStatus; }
 
 protected:
-    [[nodiscard]] uint8 readBus(uint16 address) const;
+    [[nodiscard]] uint8 readBus(uint16 address);
     void                writeBus(uint16 address, uint8 data);
 
 private:
-    inline void advanceScanline();
+    inline uint8 readStatus();
+    inline void  advanceScanline();
 
 private:
     PpuBus&         m_ppuBus;
@@ -166,8 +173,10 @@ private:
     Oam       m_oam{};
 
     uint8  m_dataLatch{};
-    uint16 m_pixelCount{};
+    uint16 m_dotCycle{};
     uint16 m_scanline{};
+
+    std::array<PaletteIndex, kScreenDotWidth * kScreenDotHeight> m_outputBuffer{};
 };
 }
 

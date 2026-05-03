@@ -298,6 +298,16 @@ TEST_CASE("PPUSTATUS")
 
             CHECK_FALSE(ppu.ppuStatus().vBlank());
         }
+
+        SUBCASE("clears vBlank bit") {
+            ppu.reset();
+
+            // Put the PPU in vBlank state and read the status register
+            ppu.execute(Ppu::kFrameScanlineWidth * 242);
+            auto _ = ppu.read(ppuStatus);
+
+            CHECK_FALSE(ppu.ppuStatus().vBlank());
+        }
     }
 }
 

@@ -18,7 +18,7 @@ public:
     ~InternalRam() = default;
 
 protected:
-    [[nodiscard]] uint8 readBus(const uint16 address) const { return m_memory[address & ADDRESS_MIRROR_MASK]; }
+    [[nodiscard]] uint8 readBus(const uint16 address) { return m_memory[address & ADDRESS_MIRROR_MASK]; }
     void                writeBus(const uint16 address, const uint8 data) { m_memory[address & ADDRESS_MIRROR_MASK] = data; }
 
 private:
