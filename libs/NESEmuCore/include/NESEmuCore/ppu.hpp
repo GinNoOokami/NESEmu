@@ -133,13 +133,14 @@ class Ppu : public BusMappable<Ppu> {
     };
 
 public:
-    using PaletteIndex = uint8;
-
     static constexpr int kScreenDotWidth     = 256;
     static constexpr int kScreenDotHeight    = 240;
     static constexpr int kFrameScanlineWidth = 341;
     static constexpr int kFrameScanlineMax   = 262;
     static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
+
+    using PaletteIndex = uint8;
+    using FrameBuffer  = std::array<PaletteIndex, kScreenDotWidth * kScreenDotHeight>;
 
     explicit Ppu(PpuBus& ppuBus, InterruptLines& interruptLines);
 
@@ -152,6 +153,8 @@ public:
     [[nodiscard]] const PpuCtrl&   ppuCtrl() const { return m_ppuCtrl; }
     [[nodiscard]] const PpuMask&   ppuMask() const { return m_ppuMask; }
     [[nodiscard]] const PpuStatus& ppuStatus() const { return m_ppuStatus; }
+
+    [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_frameBuffer; }
 
 protected:
     [[nodiscard]] uint8 readBus(uint16 address);
@@ -176,7 +179,7 @@ private:
     uint16 m_dotCycle{};
     uint16 m_scanline{};
 
-    std::array<PaletteIndex, kScreenDotWidth * kScreenDotHeight> m_outputBuffer{};
+    FrameBuffer m_frameBuffer{};
 };
 }
 
