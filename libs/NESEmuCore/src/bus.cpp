@@ -1,52 +1,15 @@
 #include "NESEmuCore/bus.hpp"
 
-#include "NESEmuCore/memory.hpp"
-
 using namespace NESEmu;
 
-uint8 CpuBus::read(const uint16 address)
+void MainBus::write(const uint16 address, const uint8 data)
 {
-    uint8 data = m_openBusData;
-
-    switch (address & ADDRESS_MASK) {
-        case MEMORY_ENABLE_MASK:
-            data = m_openBusData = m_memory.read(address);
-            break;
-        case CARTRIDGE1_ENABLE_MASK:
-        case CARTRIDGE2_ENABLE_MASK:
-        case CARTRIDGE3_ENABLE_MASK:
-        case CARTRIDGE4_ENABLE_MASK:
-            if (m_mapper != nullptr) {
-                data = m_mapper->read(address);
-            }
-            break;
-        default:
-            break;
-    }
-
-    return data;
+    auto& handler = getHandler(address);
+    handler.write(handler.ctx, address, data);
 }
 
-void CpuBus::write(const uint16 address, const uint8 data)
+uint8 MainBus::read(const uint16 address)
 {
-    m_openBusData = data;
-    
-    switch (address & ADDRESS_MASK) {
-        case MEMORY_ENABLE_MASK:
-            m_memory.write(address, data);
-            break;
-        default:
-            break;
-    }
-}
-
-
-uint8 PpuBus::read(const uint16 address)
-{
-    return m_openBusData;
-}
-
-void PpuBus::write(uint16 address, uint8 data)
-{
-    m_openBusData = data;
+    auto& handler = getHandler(address);
+    return handler.read(handler.ctx, address);
 }

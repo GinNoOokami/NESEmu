@@ -1,7 +1,7 @@
 #ifndef NESEMU_BUS_HPP
 #define NESEMU_BUS_HPP
 
-#include "cartridge.hpp"
+#include "NESEmuCore/cartridge.hpp"
 #include "NESEmuCore/emu_types.hpp"
 
 /*
@@ -31,88 +31,71 @@ CPU Memory Map
 */
 
 namespace NESEmu {
-class InternalRam;
-
-enum BusType {
-    kCpuBus,
-    kPpuBus,
-    kTestBus,
-    kMaxBusTypes
+template <typename T>
+concept BusDevice = requires(T& device, uint16 addr, uint8 data)
+{
+    { device.read(addr) } -> std::same_as<uint8>;
+    { device.write(addr, data) };
 };
 
-class Bus {
+enum class AddressRegion : uint8 {
+    WorkRam,
+    Ppu,
+    ApuIo,
+    Cartridge0,
+    Cartridge1,
+    Cartridge2,
+    Cartridge3,
+    Cartridge4,
+};
+
+class MainBus {
 public:
-    [[nodiscard]] uint8 read(const uint16_t address) { return m_readFn[type](*this, address); }
-    void                write(const uint16_t address, const uint8 data) { m_writeFn[type](*this, address, data); }
+    template <BusDevice T>
+    void attachRegion(AddressRegion address, T& dev) { m_regions[static_cast<uint8>(address)] = makeHandler(dev); }
 
-protected:
-    explicit Bus(const BusType t) : type(t) {}
-
-    using readFn                                  = uint8 (*)(Bus&, uint16_t);
-    using writeFn                                 = void (*)(Bus&, uint16, uint8);
-    inline static readFn  m_readFn[kMaxBusTypes]  = {};
-    inline static writeFn m_writeFn[kMaxBusTypes] = {};
-
-    uint8 m_openBusData = 0;
-
-    const BusType type;
-};
-
-template <class T, BusType TBus>
-class BusCRTP : public Bus {
-    static const BusType type;
-
-    static uint8 readBus(Bus& b, uint16 address)
-    {
-        return static_cast<T&>(b).read(address);
-    }
-
-    static void writeBus(Bus& b, uint16 address, uint8 data)
-    {
-        static_cast<T&>(b).write(address, data);
-    }
-
-    static constexpr BusType Register()
-    {
-        return m_readFn[TBus] = readBus, m_writeFn[TBus] = writeBus, TBus;
-    }
-
-protected:
-    BusCRTP() : Bus(type) {}
-};
-
-template <class T, BusType TBus>
-const BusType BusCRTP<T, TBus>::type = Register();
-
-class CpuBus : public BusCRTP<CpuBus, kCpuBus> {
-    static constexpr uint16 ADDRESS_MASK           = 0b1110000000000000;
-    static constexpr uint16 MEMORY_ENABLE_MASK     = 0b0000000000000000; // $0000–$1FFF
-    static constexpr uint16 PPU_ENABLE_MASK        = 0b0010000000000000; // $2000–$3FFF
-    static constexpr uint16 APU_IO_ENABLE_MASK     = 0b0100000000000000; // $4000–$5FFF
-    static constexpr uint16 SRAM_ENABLE_MASK       = 0b0110000000000000; // $6000-$7FFF
-    static constexpr uint16 CARTRIDGE1_ENABLE_MASK = 0b1000000000000000; // $8000-$FFFF
-    static constexpr uint16 CARTRIDGE2_ENABLE_MASK = 0b1010000000000000; // $8000-$FFFF
-    static constexpr uint16 CARTRIDGE3_ENABLE_MASK = 0b1100000000000000; // $8000-$FFFF
-    static constexpr uint16 CARTRIDGE4_ENABLE_MASK = 0b1110000000000000; // $8000-$FFFF
-
-public:
-    explicit CpuBus(InternalRam& memory) : m_memory(memory), m_mapper(nullptr) {}
-
-    [[nodiscard]] uint8 read(uint16 address);
     void                write(uint16 address, uint8 data);
-    void                mapper(MapperNRom* mapper) { m_mapper = mapper; }
+    [[nodiscard]] uint8 read(uint16 address);
 
 private:
-    InternalRam& m_memory;
+    static constexpr int kAddressRegionCount = 8;
+    static constexpr int kAddressRegionMask  = kAddressRegionCount - 1;
 
-    MapperNRom* m_mapper;
+    struct Handler {
+        uint8 (*read)(void*, uint16)         = &Handler::readUnmapped;
+        void (* write)(void*, uint16, uint8) = &Handler::writeUnmapped;
+        void*   ctx                          = nullptr;
+
+        static uint8 readUnmapped(void*, uint16) { return 0; }
+        static void  writeUnmapped(void*, uint16, uint8) {}
+    };
+
+    template <BusDevice T>
+    static constexpr Handler makeHandler(T& device)
+    {
+        return {
+            +[](void* ctx, uint16 addr) { return static_cast<T*>(ctx)->read(addr); },
+            +[](void* ctx, uint16 addr, uint8 data) { static_cast<T*>(ctx)->write(addr, data); },
+            &device
+        };
+    }
+
+    [[nodiscard]] const Handler& getHandler(uint16 address) const
+    {
+        // The CE select uses the 3 highest bits on the address line
+        return m_regions[(address >> 13) & kAddressRegionMask];
+    }
+
+    Handler m_regions[kAddressRegionCount];
 };
 
+class PpuBus {
+    void write(uint16 address, uint8 data) const
+    {
+        /* Placeholder */
+    }
 
-class PpuBus : public BusCRTP<PpuBus, kPpuBus> {
-public:
-    [[nodiscard]] uint8 read(uint16 address);
-    void                write(uint16 address, uint8 data);
+    [[nodiscard]] uint8 read(uint16 address) { return 0; }
 };
 }
 

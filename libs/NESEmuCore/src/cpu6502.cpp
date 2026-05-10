@@ -7,7 +7,7 @@
 
 using namespace NESEmu;
 
-Cpu6502::Cpu6502(Bus& bus, InterruptLines& interruptLines)
+Cpu6502::Cpu6502(MainBus& bus, InterruptLines& interruptLines)
     : m_bus(bus), m_interruptLines(interruptLines)
 {
     m_opcodeHandlers[0x00] = &Cpu6502::opBRK;

@@ -2,7 +2,6 @@
 #define NESEMU_PPU_H
 
 #include "emu_types.hpp"
-#include "bus_mappable.hpp"
 
 #include <array>
 
@@ -31,10 +30,7 @@ namespace NESEmu {
 class PpuBus;
 struct InterruptLines;
 
-class Ppu : public BusMappable<Ppu> {
-    template <typename>
-    friend class BusMappable;
-
+class Ppu {
     static constexpr int kFrameVisibleStart    = 0;
     static constexpr int kFramePostRenderStart = 240;
     static constexpr int kFrameVBlankStart     = 241;
@@ -156,9 +152,8 @@ public:
 
     [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_frameBuffer; }
 
-protected:
-    [[nodiscard]] uint8 readBus(uint16 address);
-    void                writeBus(uint16 address, uint8 data);
+    [[nodiscard]] uint8 read(uint16 address);
+    void                write(uint16 address, uint8 data);
 
 private:
     inline uint8 readStatus();

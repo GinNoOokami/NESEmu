@@ -1,6 +1,6 @@
 #include "cpu_step_tests.hpp"
 
-#include "test_bus.hpp"
+#include "test_memory.hpp"
 
 #include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/cpu6502.hpp"
@@ -27,9 +27,18 @@ void runOpcodeStepTests(uint8_t opcode, const std::string& instructionDesc)
         std::ostringstream oss;
         INFO("Executing test: ", createTestName(instructionDesc, test), "\ninitial_state=", test.initial_state);
 
-        TestBus        bus;
+        MainBus        bus;
+        TestRam        memory;
         InterruptLines interruptLines;
         Cpu6502        cpu(bus, interruptLines);
+        bus.attachRegion(AddressRegion::WorkRam, memory);
+        bus.attachRegion(AddressRegion::Ppu, memory);
+        bus.attachRegion(AddressRegion::ApuIo, memory);
+        bus.attachRegion(AddressRegion::Cartridge0, memory);
+        bus.attachRegion(AddressRegion::Cartridge1, memory);
+        bus.attachRegion(AddressRegion::Cartridge2, memory);
+        bus.attachRegion(AddressRegion::Cartridge3, memory);
+        bus.attachRegion(AddressRegion::Cartridge4, memory);
 
         test.initializeCpu(cpu, bus);
         auto initialCycles = cpu.cycles();
@@ -53,9 +62,8 @@ SUBCASE(descriptionText)                                          \
 TEST_SUITE("CPU Tests") {
 TEST_CASE("init State matches expected values")
 {
-    InternalRam    memory;
     InterruptLines interruptLines;
-    CpuBus         bus(memory);
+    MainBus        bus;
     Cpu6502        cpu(bus, interruptLines);
     cpu.startup();
 
@@ -68,9 +76,18 @@ TEST_CASE("init State matches expected values")
 
 TEST_CASE("PC reads reset vector on startup")
 {
-    TestBus        bus;
+    MainBus        bus;
+    TestRam        memory;
     InterruptLines interruptLines;
     Cpu6502        cpu(bus, interruptLines);
+    bus.attachRegion(AddressRegion::WorkRam, memory);
+    bus.attachRegion(AddressRegion::Ppu, memory);
+    bus.attachRegion(AddressRegion::ApuIo, memory);
+    bus.attachRegion(AddressRegion::Cartridge0, memory);
+    bus.attachRegion(AddressRegion::Cartridge1, memory);
+    bus.attachRegion(AddressRegion::Cartridge2, memory);
+    bus.attachRegion(AddressRegion::Cartridge3, memory);
+    bus.attachRegion(AddressRegion::Cartridge4, memory);
 
     bus.write(0xFFFC, 0xF0);
     bus.write(0xFFFD, 0x81);
@@ -83,7 +100,7 @@ TEST_CASE("PC reads reset vector on startup")
 TEST_CASE("NMI interrupts")
 {
     SUBCASE("when requested is cleared by CPU") {
-        TestBus        bus;
+        MainBus        bus;
         InterruptLines interruptLines;
         Cpu6502        cpu(bus, interruptLines);
 
@@ -96,9 +113,18 @@ TEST_CASE("NMI interrupts")
     }
 
     SUBCASE("when requested sets PC to address at NMI vector") {
-        TestBus        bus;
+        MainBus        bus;
+        TestRam        memory;
         InterruptLines interruptLines;
         Cpu6502        cpu(bus, interruptLines);
+        bus.attachRegion(AddressRegion::WorkRam, memory);
+        bus.attachRegion(AddressRegion::Ppu, memory);
+        bus.attachRegion(AddressRegion::ApuIo, memory);
+        bus.attachRegion(AddressRegion::Cartridge0, memory);
+        bus.attachRegion(AddressRegion::Cartridge1, memory);
+        bus.attachRegion(AddressRegion::Cartridge2, memory);
+        bus.attachRegion(AddressRegion::Cartridge3, memory);
+        bus.attachRegion(AddressRegion::Cartridge4, memory);
 
         bus.write(0xFFFA, 0x88);
         bus.write(0xFFFB, 0x82);

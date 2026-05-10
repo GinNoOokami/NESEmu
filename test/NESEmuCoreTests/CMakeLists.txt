@@ -19,7 +19,7 @@ target_sources(NESEmuCoreTests
             include
         FILES
             include/cpu_step_tests.hpp
-            include/test_bus.hpp
+            include/test_memory.hpp
 )
 
 target_link_libraries(NESEmuCoreTests

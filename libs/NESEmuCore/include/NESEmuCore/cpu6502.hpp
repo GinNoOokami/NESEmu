@@ -11,7 +11,7 @@
 // https://retrocomputing.stackexchange.com/a/17891
 
 namespace NESEmu {
-class Bus;
+class MainBus;
 struct InterruptLines;
 
 class Cpu6502 {
@@ -42,7 +42,7 @@ public:
         uint8  p;
     };
 
-    explicit Cpu6502(Bus& bus, InterruptLines& interruptLines);
+    explicit Cpu6502(MainBus& bus, InterruptLines& interruptLines);
     ~Cpu6502();
 
     void startup();
@@ -273,7 +273,7 @@ private:
     uint8  m_data{};
     uint32 m_cycles{};
 
-    Bus&            m_bus;
+    MainBus&        m_bus;
     InterruptLines& m_interruptLines;
 };
 

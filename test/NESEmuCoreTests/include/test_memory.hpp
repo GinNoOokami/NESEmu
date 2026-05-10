@@ -1,12 +1,12 @@
 #ifndef NESEMU_TEST_BUS_HPP
 #define NESEMU_TEST_BUS_HPP
 
-#include "NESEmuCore/bus.hpp"
+#include <array>
 
 namespace NESEmu {
-class TestBus : public BusCRTP<TestBus, kTestBus> {
+class TestRam {
 public:
-    [[nodiscard]] uint8 read(uint16_t address) { return m_memory[address]; }
+    [[nodiscard]] uint8 read(uint16_t address) const { return m_memory[address]; }
     void                write(uint16 address, uint8 data) { m_memory[address] = data; }
 
 private:

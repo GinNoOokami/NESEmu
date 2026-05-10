@@ -116,7 +116,7 @@ struct CpuStepTest {
         }
     }
 
-    void initializeCpu(Cpu6502& cpu, Bus& bus) const
+    void initializeCpu(Cpu6502& cpu, MainBus& bus) const
     {
         cpu.state(initial_state.cpu);
         for (auto [address, value] : initial_state.memory) {
@@ -124,7 +124,7 @@ struct CpuStepTest {
         }
     }
 
-    [[nodiscard]] CPUTestState currentState(const Cpu6502& cpu, Bus& bus)
+    [[nodiscard]] CPUTestState currentState(const Cpu6502& cpu, MainBus& bus)
     {
         CPUTestState current;
         current.cpu = cpu.state();

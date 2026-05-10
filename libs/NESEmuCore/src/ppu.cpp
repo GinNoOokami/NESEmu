@@ -28,7 +28,7 @@ void Ppu::execute(const int ppuCycles)
     }
 }
 
-uint8 Ppu::readBus(const uint16 address)
+uint8 Ppu::read(const uint16 address)
 {
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
         case PpuRegisters::kPpuCtrl:
@@ -50,7 +50,7 @@ uint8 Ppu::readBus(const uint16 address)
     return m_dataLatch;
 }
 
-void Ppu::writeBus(const uint16 address, const uint8 data)
+void Ppu::write(const uint16 address, const uint8 data)
 {
     m_dataLatch = data;
 
