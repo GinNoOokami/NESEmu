@@ -12,6 +12,7 @@ target_sources(NESEmuCoreTests
             src/test_main.cpp
             src/cartridge_tests.cpp
             src/cpu6502_tests.cpp
+            src/dma_tests.cpp
             src/ppu_tests.cpp
 
         PUBLIC FILE_SET HEADERS

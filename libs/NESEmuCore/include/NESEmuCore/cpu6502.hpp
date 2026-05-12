@@ -11,6 +11,7 @@
 // https://retrocomputing.stackexchange.com/a/17891
 
 namespace NESEmu {
+class Clock;
 class MainBus;
 struct InterruptLines;
 
@@ -42,7 +43,7 @@ public:
         uint8  p;
     };
 
-    explicit Cpu6502(MainBus& bus, InterruptLines& interruptLines);
+    explicit Cpu6502(Clock& clock, MainBus& bus, InterruptLines& interruptLines);
     ~Cpu6502();
 
     void startup();
@@ -53,7 +54,7 @@ public:
     void                       state(const State& state) { m_state = state; }
 
 
-    [[nodiscard]] uint32 cycles() const { return m_cycles; }
+    [[nodiscard]] uint64 cycles() const;
 
 private:
     typedef void (Cpu6502::*OpcodeHandler)();
@@ -271,8 +272,8 @@ private:
     // Internal state
     uint16 m_address{};
     uint8  m_data{};
-    uint32 m_cycles{};
 
+    Clock&          m_clock;
     MainBus&        m_bus;
     InterruptLines& m_interruptLines;
 };

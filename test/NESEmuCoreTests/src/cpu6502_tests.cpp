@@ -3,9 +3,9 @@
 #include "test_memory.hpp"
 
 #include "NESEmuCore/bus.hpp"
+#include "NESEmuCore/clock.hpp"
 #include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/interrupt_lines.hpp"
-#include "NESEmuCore/memory.hpp"
 
 #include <doctest.h>
 
@@ -27,10 +27,11 @@ void runOpcodeStepTests(uint8_t opcode, const std::string& instructionDesc)
         std::ostringstream oss;
         INFO("Executing test: ", createTestName(instructionDesc, test), "\ninitial_state=", test.initial_state);
 
+        Clock          clock;
         MainBus        bus;
         TestRam        memory;
         InterruptLines interruptLines;
-        Cpu6502        cpu(bus, interruptLines);
+        Cpu6502        cpu(clock, bus, interruptLines);
         bus.attachRegion(AddressRegion::WorkRam, memory);
         bus.attachRegion(AddressRegion::Ppu, memory);
         bus.attachRegion(AddressRegion::ApuIo, memory);
@@ -62,9 +63,10 @@ SUBCASE(descriptionText)                                          \
 TEST_SUITE("CPU Tests") {
 TEST_CASE("init State matches expected values")
 {
+    Clock          clock;
     InterruptLines interruptLines;
     MainBus        bus;
-    Cpu6502        cpu(bus, interruptLines);
+    Cpu6502        cpu(clock, bus, interruptLines);
     cpu.startup();
 
     CHECK_EQ(cpu.state().sp, 0xFD);
@@ -76,10 +78,11 @@ TEST_CASE("init State matches expected values")
 
 TEST_CASE("PC reads reset vector on startup")
 {
+    Clock          clock;
     MainBus        bus;
     TestRam        memory;
     InterruptLines interruptLines;
-    Cpu6502        cpu(bus, interruptLines);
+    Cpu6502        cpu(clock, bus, interruptLines);
     bus.attachRegion(AddressRegion::WorkRam, memory);
     bus.attachRegion(AddressRegion::Ppu, memory);
     bus.attachRegion(AddressRegion::ApuIo, memory);
@@ -100,9 +103,10 @@ TEST_CASE("PC reads reset vector on startup")
 TEST_CASE("NMI interrupts")
 {
     SUBCASE("when requested is cleared by CPU") {
+        Clock          clock;
         MainBus        bus;
         InterruptLines interruptLines;
-        Cpu6502        cpu(bus, interruptLines);
+        Cpu6502        cpu(clock, bus, interruptLines);
 
         interruptLines.nmiActive = true;
 
@@ -113,10 +117,11 @@ TEST_CASE("NMI interrupts")
     }
 
     SUBCASE("when requested sets PC to address at NMI vector") {
+        Clock          clock;
         MainBus        bus;
         TestRam        memory;
         InterruptLines interruptLines;
-        Cpu6502        cpu(bus, interruptLines);
+        Cpu6502        cpu(clock, bus, interruptLines);
         bus.attachRegion(AddressRegion::WorkRam, memory);
         bus.attachRegion(AddressRegion::Ppu, memory);
         bus.attachRegion(AddressRegion::ApuIo, memory);

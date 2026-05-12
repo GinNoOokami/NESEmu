@@ -3,12 +3,13 @@
 #include <stdexcept>
 
 #include "NESEmuCore/bus.hpp"
+#include "NESEmuCore/clock.hpp"
 #include "NESEmuCore/interrupt_lines.hpp"
 
 using namespace NESEmu;
 
-Cpu6502::Cpu6502(MainBus& bus, InterruptLines& interruptLines)
-    : m_bus(bus), m_interruptLines(interruptLines)
+Cpu6502::Cpu6502(Clock& clock, MainBus& bus, InterruptLines& interruptLines)
+    : m_clock(clock), m_bus(bus), m_interruptLines(interruptLines)
 {
     m_opcodeHandlers[0x00] = &Cpu6502::opBRK;
     m_opcodeHandlers[0x01] = &Cpu6502::opORA_ind_X;
@@ -321,9 +322,14 @@ void Cpu6502::execute()
     (this->*m_opcodeHandlers[opcode])();
 }
 
+uint64 Cpu6502::cycles() const
+{
+    return m_clock.cpuCycles();
+}
+
 uint8 Cpu6502::readMemory(const uint16 address)
 {
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
     m_address = address;
 
     return m_data = m_bus.read(address);
@@ -331,7 +337,7 @@ uint8 Cpu6502::readMemory(const uint16 address)
 
 void Cpu6502::writeMemory(const uint16 address, const uint8 value)
 {
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
     m_address = address;
     m_data    = value;
     m_bus.write(address, value);
@@ -372,7 +378,7 @@ void Cpu6502::processNmi()
 void Cpu6502::addressModeImplied()
 {
     // implied addressing mode takes an extra cycle
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 }
 
 void Cpu6502::addressModeImmediate()
@@ -406,7 +412,7 @@ void Cpu6502::addressModeZeroPageX()
 
     // Zero page indexing takes an extra internal cycle, so the ALU
     // has time to add the value of the register to the base address
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 }
 
 template <int MODE>
@@ -420,7 +426,7 @@ void Cpu6502::addressModeZeroPageY()
 
     // Zero page indexing takes an extra internal cycle, so the ALU
     // has time to add the value of the register to the base address
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 }
 
 template <int MODE>
@@ -458,16 +464,16 @@ void Cpu6502::addressModeAbsoluteX()
         readMemory(m_address);
 
         if constexpr (kModeReadWrite == MODE) {
-            m_cycles++;
+            m_clock.advanceCpuCycles(1);
         } else {
             if (lo + m_state.x > 0xFF) {
                 // Crossing a page boundry takes an extra internal cycle
-                m_cycles++;
+                m_clock.advanceCpuCycles(1);
             }
         }
     }
     if constexpr (kModeWriteOnly == MODE) {
-        m_cycles++;
+        m_clock.advanceCpuCycles(1);
     }
 }
 
@@ -483,16 +489,16 @@ void Cpu6502::addressModeAbsoluteY()
         readMemory(m_address);
 
         if constexpr (kModeReadWrite == MODE) {
-            m_cycles++;
+            m_clock.advanceCpuCycles(1);
         } else {
             if (lo + m_state.y > 0xFF) {
                 // Crossing a page boundry takes an extra internal cycle
-                m_cycles++;
+                m_clock.advanceCpuCycles(1);
             }
         }
     }
     if constexpr (kModeWriteOnly == MODE) {
-        m_cycles++;
+        m_clock.advanceCpuCycles(1);
     }
 }
 
@@ -509,7 +515,7 @@ void Cpu6502::addressModeIndirectX()
     }
 
     // Index mode takes an extra internal cycle
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 }
 
 template <int MODE>
@@ -526,11 +532,11 @@ void Cpu6502::addressModeIndirectY()
 
         if (lo + m_state.y > 0xFF) {
             // Crossing a page boundry takes an extra internal cycle
-            m_cycles++;
+            m_clock.advanceCpuCycles(1);
         }
     }
     if constexpr (kModeWriteOnly == MODE) {
-        m_cycles++;
+        m_clock.advanceCpuCycles(1);
     }
 }
 
@@ -667,7 +673,7 @@ void Cpu6502::opASL()
     const auto   data  = static_cast<uint8>(total);
 
     // ASL takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     setRegister(C, total & 0x100);
     setRegister(Z, !data);
@@ -719,11 +725,11 @@ void Cpu6502::opBRC(bool branch)
 
         if (lo + offset & 0xFF00) {
             // Crossing a page boundry takes an extra internal cycle
-            m_cycles++;
+            m_clock.advanceCpuCycles(1);
         }
 
         // Jump takes a cycle
-        m_cycles++;
+        m_clock.advanceCpuCycles(1);
 
         m_state.pc += offset;
     }
@@ -956,7 +962,7 @@ void Cpu6502::opDEC()
     const uint8 data = m_data - 1;
 
     // DEC takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     setRegister(Z, !data);
     setRegister(N, data & 0x80);
@@ -1073,7 +1079,7 @@ void Cpu6502::opINC()
     const uint8 data = m_data + 1;
 
     // INC takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     setRegister(Z, !data);
     setRegister(N, data & 0x80);
@@ -1163,7 +1169,7 @@ void Cpu6502::opJSR()
     pushStack(static_cast<uint8>(pc));
 
     // JSR takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     m_state.pc = addr;
 }
@@ -1306,7 +1312,7 @@ void Cpu6502::opLSR()
     const auto   data  = static_cast<uint8>(total);
 
     // LSR takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     setRegister(C, m_data & 0x01);
     setRegister(Z, !data);
@@ -1353,7 +1359,7 @@ void Cpu6502::opLSR_abs_X()
 void Cpu6502::opNOP()
 {
     // NOP has a dummy read which takes an extra cycle
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 }
 
 void Cpu6502::opORA()
@@ -1431,7 +1437,7 @@ void Cpu6502::opPLA()
     addressModeImplied();
 
     // PLA takes an extra cycle
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     m_state.a = popStack();
 
@@ -1446,7 +1452,7 @@ void Cpu6502::opPLP()
     addressModeImplied();
 
     // PLA takes an extra cycle
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     // Note that the effect of changing I is delayed one instruction because the flag is changed
     // after IRQ is polled, delaying the effect until IRQ is polled in the next instruction
@@ -1460,7 +1466,7 @@ void Cpu6502::opROL()
     const auto   data  = static_cast<uint8>(total);
 
     // ROL takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     setRegister(C, m_data & 0x80);
     setRegister(Z, !data);
@@ -1510,7 +1516,7 @@ void Cpu6502::opROR()
     const auto   data  = static_cast<uint8>(total);
 
     // ROR takes an extra cycle to complete operation
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 
     setRegister(C, m_data & 0x01);
     setRegister(Z, !data);
@@ -1566,7 +1572,7 @@ void Cpu6502::opRTI()
     m_state.p  = p;
     m_state.pc = pc;
 
-    m_cycles++;
+    m_clock.advanceCpuCycles(1);
 }
 
 void Cpu6502::opRTS()
@@ -1586,7 +1592,7 @@ void Cpu6502::opRTS()
     // Cycle 4: SP+1 to address bus, reading PC-1 low byte, will be directed to ALU. ALU performs another increment
     // Cycle 5: SP+2 to address bus from the ALU, also updates the value of SP. ALU performs a NOP with PC-1 low byte, PC-1 high byte is read
     // Cycle 6: PC is updated with PC-1, new PC sent to address bus, byte before destination is read because something has to happen, PC will be incremented as usual
-    m_cycles += 3;
+    m_clock.advanceCpuCycles(3);
 
     m_state.pc = pc + 1;
 }
