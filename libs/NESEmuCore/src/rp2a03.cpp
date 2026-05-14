@@ -10,6 +10,7 @@ void Rp2A03::startup()
 void Rp2A03::reset()
 {
     m_cpu.reset();
+    m_dma.reset();
 }
 
 void Rp2A03::execute()

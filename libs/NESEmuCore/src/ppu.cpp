@@ -17,9 +17,10 @@ void Ppu::reset()
     m_scanline = 0;
 }
 
-void Ppu::execute(const int ppuCycles)
+void Ppu::executeUntil(const uint64 targetPpuCycles)
 {
-    for (int i = 0; i < ppuCycles; ++i) {
+    while (m_cycles < targetPpuCycles) {
+        m_cycles++;
         m_dotCycle++;
         if (m_dotCycle >= kFrameScanlineWidth) {
             m_dotCycle = 0;

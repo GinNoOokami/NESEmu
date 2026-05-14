@@ -5,6 +5,12 @@ namespace NESEmu {
 struct InterruptLines {
     bool nmiActive = false;
     bool irqActive = false;
+
+    void reset()
+    {
+        nmiActive = false;
+        irqActive = false;
+    }
 };
 }
 

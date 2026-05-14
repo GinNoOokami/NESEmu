@@ -266,7 +266,7 @@ TEST_CASE("PPUSTATUS")
         SUBCASE("on first visible frame (scanline 0) is unset") {
             ppu.reset();
 
-            ppu.execute(1);
+            ppu.executeUntil(1);
 
             CHECK_FALSE(ppu.ppuStatus().vBlank());
         }
@@ -274,7 +274,7 @@ TEST_CASE("PPUSTATUS")
         SUBCASE("on first post-render frame (scanline 240) is unset") {
             ppu.reset();
 
-            ppu.execute(Ppu::kFrameScanlineWidth * 240);
+            ppu.executeUntil(Ppu::kFrameScanlineWidth * 240);
 
             CHECK_FALSE(ppu.ppuStatus().vBlank());
         }
@@ -284,7 +284,7 @@ TEST_CASE("PPUSTATUS")
 
             // Although we aren't accounting for it right now, technically
             // the vBlank flag is set on the first non-idle cycle of the scanline
-            ppu.execute(Ppu::kFrameScanlineWidth * 241 + 1);
+            ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
 
             CHECK(ppu.ppuStatus().vBlank());
         }
@@ -294,7 +294,7 @@ TEST_CASE("PPUSTATUS")
 
             // Although we aren't accounting for it right now, technically
             // the vBlank flag is set on the first non-idle cycle of the scanline
-            ppu.execute(Ppu::kFrameScanlineWidth * 261 + 1);
+            ppu.executeUntil(Ppu::kFrameScanlineWidth * 261 + 1);
 
             CHECK_FALSE(ppu.ppuStatus().vBlank());
         }
@@ -303,7 +303,7 @@ TEST_CASE("PPUSTATUS")
             ppu.reset();
 
             // Put the PPU in vBlank state and read the status register
-            ppu.execute(Ppu::kFrameScanlineWidth * 242);
+            ppu.executeUntil(Ppu::kFrameScanlineWidth * 242);
             auto _ = ppu.read(ppuStatus);
 
             CHECK_FALSE(ppu.ppuStatus().vBlank());
@@ -358,7 +358,7 @@ TEST_CASE("NMI interrupt")
         // Ensure NMI is enabled
         ppu.write(0x2000, 0x80);
 
-        ppu.execute(Ppu::kFrameScanlineWidth * 241 + 1);
+        ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
 
         CHECK(interruptLines.nmiActive);
     }
@@ -371,7 +371,7 @@ TEST_CASE("NMI interrupt")
         // Ensure NMI is disabled
         ppu.write(0x2000, 0x00);
 
-        ppu.execute(Ppu::kFrameScanlineWidth * 241 + 1);
+        ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
 
         CHECK_FALSE(interruptLines.nmiActive);
     }

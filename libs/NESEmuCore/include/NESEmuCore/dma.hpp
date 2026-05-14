@@ -12,6 +12,7 @@ class DmaController {
 public:
     explicit DmaController(Clock& clock, MainBus& bus) : m_clock(clock), m_bus(bus) {}
 
+    void reset();
     void execute();
     void requestOamDma(uint8 page);
 

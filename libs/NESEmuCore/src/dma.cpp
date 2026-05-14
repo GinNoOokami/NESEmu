@@ -5,6 +5,13 @@
 
 using namespace NESEmu;
 
+void DmaController::reset()
+{
+    m_oamDmaIndex   = 0;
+    m_oamDmaAddress = 0;
+    m_oamDmaActive  = false;
+}
+
 void DmaController::execute()
 {
     // TODO: There is an extra idle cycle on odd cpu cycles

@@ -10,6 +10,7 @@ target_sources(NESEmuCore
         src/mapper_nrom.cpp
         src/ppu.cpp
         src/rp2a03.cpp
+        src/system.cpp
 
     PUBLIC
         FILE_SET HEADERS
@@ -28,4 +29,5 @@ target_sources(NESEmuCore
             include/NESEmuCore/memory.hpp
             include/NESEmuCore/ppu.hpp
             include/NESEmuCore/rp2a03.hpp
+            include/NESEmuCore/system.hpp
 )

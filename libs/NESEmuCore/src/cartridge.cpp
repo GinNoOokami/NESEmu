@@ -5,7 +5,7 @@
 
 using namespace NESEmu;
 
-Cartridge* Cartridge::createFromFile(const std::filesystem::path& path)
+std::unique_ptr<Cartridge> Cartridge::createFromFile(const std::filesystem::path& path)
 {
     std::ifstream file(path, std::ios::binary);
     if (!file) {
@@ -16,21 +16,21 @@ Cartridge* Cartridge::createFromFile(const std::filesystem::path& path)
     info.path = path;
 
     if (tryLoadiNESHeader(file, info)) {
-        return new Cartridge(info);
+        return std::unique_ptr<Cartridge>(new Cartridge(info));
     }
 
     // Not a supported ROM file
     return nullptr;
 }
 
-MapperNRom* Cartridge::loadMapper() const
+std::unique_ptr<MapperNRom> Cartridge::loadMapper() const
 {
     std::ifstream file(m_info.path, std::ios::binary);
     if (!file) {
         throw std::runtime_error("Invalid ROM path: " + m_info.path.string());
     }
 
-    return new MapperNRom(file, m_info.headerOffset, m_info.prgRomSizeBytes, m_info.chrRomSizeBytes);
+    return std::unique_ptr<MapperNRom>(new MapperNRom(file, m_info.headerOffset, m_info.prgRomSizeBytes, m_info.chrRomSizeBytes));
 }
 
 Cartridge::Cartridge(const CartridgeInfo& info)

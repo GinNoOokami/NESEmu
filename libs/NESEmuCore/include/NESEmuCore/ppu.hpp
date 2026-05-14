@@ -143,8 +143,7 @@ public:
     void startup();
     void reset();
 
-    // The PPU runs at 3x the CPU clock on NTSC; the caller is responsible for the multiply.
-    void execute(int ppuCycles);
+    void executeUntil(uint64 targetPpuCycles);
 
     [[nodiscard]] const PpuCtrl&   ppuCtrl() const { return m_ppuCtrl; }
     [[nodiscard]] const PpuMask&   ppuMask() const { return m_ppuMask; }
@@ -173,6 +172,7 @@ private:
     uint8  m_dataLatch{};
     uint16 m_dotCycle{};
     uint16 m_scanline{};
+    uint64 m_cycles{};
 
     FrameBuffer m_frameBuffer{};
 };

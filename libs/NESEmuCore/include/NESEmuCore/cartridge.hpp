@@ -37,16 +37,15 @@ public:
         uint8                 headerOffset;
     };
 
-    static Cartridge* createFromFile(const std::filesystem::path& path);
+    static std::unique_ptr<Cartridge> createFromFile(const std::filesystem::path& path);
+
+    explicit Cartridge(const CartridgeInfo& info);
 
     [[nodiscard]] const CartridgeInfo& info() const { return m_info; }
 
-    [[nodiscard]] MapperNRom* loadMapper() const;
+    [[nodiscard]] std::unique_ptr<MapperNRom> loadMapper() const;
 
 private:
-    explicit Cartridge(const CartridgeInfo& info);
-    ~Cartridge() = default;
-
     static bool tryLoadiNESHeader(std::ifstream& file, CartridgeInfo& info);
 
     CartridgeInfo m_info;
