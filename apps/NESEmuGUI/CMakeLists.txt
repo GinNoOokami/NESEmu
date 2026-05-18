@@ -10,12 +10,21 @@ CPMAddPackage(
 add_executable(NESEmuGUI)
 
 target_sources(NESEmuGUI
-        PRIVATE
-            src/main.cpp
+    PRIVATE
+        src/main.cpp
+        src/nesemu_sdl_app.cpp
+
+    PUBLIC
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+        FILES
+            include/NESEmuGUI/app.hpp
+            include/NESEmuGUI/nesemu_sdl_app.hpp
 )
 
 target_link_libraries(NESEmuGUI
-        PRIVATE
-            NESEmuCore
-            SDL3::SDL3
+    PRIVATE
+        NESEmuCore
+        SDL3::SDL3
 )
