@@ -7,9 +7,9 @@ struct SDL_Renderer;
 
 namespace NESEmu {
 
-class NESEmuApp : public App {
+class NESEmuSdlApp : public App {
 public:
-    ~NESEmuApp() override = default;
+    ~NESEmuSdlApp() override = default;
 
     void initialize() override;
     void run() override;

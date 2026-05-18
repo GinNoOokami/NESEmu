@@ -1,11 +1,14 @@
 #include "NESEmuGUI/nesemu_sdl_app.hpp"
 
+#include <memory>
+
 int main()
 {
-    NESEmu::NESEmuApp app;
-    app.initialize();
-    app.run();
-    app.shutdown();
+    const std::unique_ptr<App> app = std::make_unique<NESEmu::NESEmuSdlApp>();
+
+    app->initialize();
+    app->run();
+    app->shutdown();
 
     return 0;
 }

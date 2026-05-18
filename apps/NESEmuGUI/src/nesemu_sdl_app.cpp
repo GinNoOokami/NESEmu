@@ -7,7 +7,7 @@
 
 #include <stdexcept>
 
-void NESEmu::NESEmuApp::initialize()
+void NESEmu::NESEmuSdlApp::initialize()
 {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         throw std::runtime_error("Failed to initialize SDL");
@@ -24,7 +24,7 @@ void NESEmu::NESEmuApp::initialize()
     };
 }
 
-void NESEmu::NESEmuApp::run()
+void NESEmu::NESEmuSdlApp::run()
 {
     SDL_Event e;
     bool      quit = false;
@@ -42,7 +42,7 @@ void NESEmu::NESEmuApp::run()
     }
 }
 
-void NESEmu::NESEmuApp::shutdown()
+void NESEmu::NESEmuSdlApp::shutdown()
 {
     SDL_DestroyRenderer(mRenderer);
     SDL_DestroyWindow(mWindow);
