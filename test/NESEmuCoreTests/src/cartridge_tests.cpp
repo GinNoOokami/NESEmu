@@ -1,5 +1,4 @@
 #include "NESEmuCore/cartridge.hpp"
-#include "NESEmuCore/memory.hpp"
 
 #include <doctest.h>
 
@@ -19,7 +18,7 @@ TEST_CASE("Too small ROM file throws exception")
 
 TEST_CASE("Invalid iNES file returns null")
 {
-    CHECK(Cartridge::createFromFile("data/rom/invalid_rom.nes") == nullptr);
+    CHECK_EQ(Cartridge::createFromFile("data/rom/invalid_rom.nes"), nullptr);
 }
 
 TEST_CASE("Valid iNES file returns Cartridge*")

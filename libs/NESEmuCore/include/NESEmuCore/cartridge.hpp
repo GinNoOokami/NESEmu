@@ -39,7 +39,7 @@ public:
 
     static std::unique_ptr<Cartridge> createFromFile(const std::filesystem::path& path);
 
-    explicit Cartridge(const CartridgeInfo& info);
+    explicit Cartridge(CartridgeInfo  info);
 
     [[nodiscard]] const CartridgeInfo& info() const { return m_info; }
 

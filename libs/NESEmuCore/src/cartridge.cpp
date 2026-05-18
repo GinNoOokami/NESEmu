@@ -2,6 +2,8 @@
 
 #include <filesystem>
 #include <fstream>
+#include <memory>
+#include <utility>
 
 using namespace NESEmu;
 
@@ -16,7 +18,7 @@ std::unique_ptr<Cartridge> Cartridge::createFromFile(const std::filesystem::path
     info.path = path;
 
     if (tryLoadiNESHeader(file, info)) {
-        return std::unique_ptr<Cartridge>(new Cartridge(info));
+        return std::make_unique<Cartridge>(info);
     }
 
     // Not a supported ROM file
@@ -30,11 +32,11 @@ std::unique_ptr<MapperNRom> Cartridge::loadMapper() const
         throw std::runtime_error("Invalid ROM path: " + m_info.path.string());
     }
 
-    return std::unique_ptr<MapperNRom>(new MapperNRom(file, m_info.headerOffset, m_info.prgRomSizeBytes, m_info.chrRomSizeBytes));
+    return std::make_unique<MapperNRom>(file, m_info.headerOffset, m_info.prgRomSizeBytes, m_info.chrRomSizeBytes);
 }
 
-Cartridge::Cartridge(const CartridgeInfo& info)
-    : m_info(info) {}
+Cartridge::Cartridge(CartridgeInfo info)
+    : m_info(std::move(info)) {}
 
 bool Cartridge::tryLoadiNESHeader(std::ifstream& file, CartridgeInfo& info)
 {
