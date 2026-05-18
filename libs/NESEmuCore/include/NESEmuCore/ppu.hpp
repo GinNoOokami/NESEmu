@@ -129,14 +129,9 @@ class Ppu {
     };
 
 public:
-    static constexpr int kScreenDotWidth     = 256;
-    static constexpr int kScreenDotHeight    = 240;
     static constexpr int kFrameScanlineWidth = 341;
     static constexpr int kFrameScanlineMax   = 262;
     static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
-
-    using PaletteIndex = uint8;
-    using FrameBuffer  = std::array<PaletteIndex, kScreenDotWidth * kScreenDotHeight>;
 
     explicit Ppu(PpuBus& ppuBus, InterruptLines& interruptLines);
 

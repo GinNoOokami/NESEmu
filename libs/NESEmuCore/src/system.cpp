@@ -19,6 +19,8 @@ void NESEmu::System::startup(const Cartridge& cartridge)
 
     m_cpu.startup();
     m_ppu.startup();
+
+    mCartridgeLoaded = true;
 }
 
 void NESEmu::System::reset()

@@ -11,20 +11,22 @@
 namespace NESEmu {
 class System {
 public:
+    static constexpr uint32 kMasterClockFrameCycles = 357368;
+
     System();
 
     void startup(const Cartridge& cartridge);
     void reset();
     void runFrame();
 
-    [[nodiscard]] const Clock& clock() const { return m_clock; }
-
-private:
-    static constexpr uint32 kMasterClockFrameCycles = 357368;
-
     // TODO: Handle one dot less every other PPU frame when rendering is enabled
     [[nodiscard]] constexpr uint32 targetMasterFrameCycles() const { return kMasterClockFrameCycles; }
 
+    [[nodiscard]] const Clock& clock() const { return m_clock; }
+    [[nodiscard]] bool         cartridgeLoaded() const { return mCartridgeLoaded; }
+    [[nodiscard]] FrameBuffer  frameBuffer() const { return m_ppu.frameBuffer(); }
+
+private:
     Clock          m_clock{};
     WorkRam        m_workRam{};
     MainBus        m_mainBus{};
@@ -34,6 +36,8 @@ private:
     Ppu            m_ppu;
 
     std::unique_ptr<MapperNRom> m_mapper;
+
+    bool mCartridgeLoaded{};
 };
 }
 

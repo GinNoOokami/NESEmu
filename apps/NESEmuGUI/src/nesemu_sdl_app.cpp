@@ -2,12 +2,43 @@
 
 #include "NESEmuGUI/nesemu_sdl_app.hpp"
 
+#include "NESEmuCore/system.hpp"
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
 #include <stdexcept>
 
+NESEmu::NESEmuSdlApp::NESEmuSdlApp()
+    : mSystem(std::make_unique<System>()) {}
+
+NESEmu::NESEmuSdlApp::~NESEmuSdlApp() = default;
+
 void NESEmu::NESEmuSdlApp::initialize()
+{
+    initSdl();
+
+    mInitialized = true;
+}
+
+void NESEmu::NESEmuSdlApp::run()
+{
+    mRunning = true;
+
+    while (mRunning) {
+        handleSdlEvents();
+        handleMainLoop();
+    }
+}
+
+void NESEmu::NESEmuSdlApp::shutdown()
+{
+    if (mInitialized) {
+        shutdownSdl();
+    }
+}
+
+void NESEmu::NESEmuSdlApp::initSdl()
 {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         throw std::runtime_error("Failed to initialize SDL");
@@ -15,36 +46,90 @@ void NESEmu::NESEmuSdlApp::initialize()
 
     if (!SDL_CreateWindowAndRenderer(
         "NESEmuGUI",
-        256,
-        240,
+        kScreenDotWidth,
+        kScreenDotHeight,
         0,
         &mWindow,
         &mRenderer)) {
         throw std::runtime_error("Failed to create window/renderer");
-    };
+    }
+
+    SDL_SetWindowTitle(mWindow, "NES Emulator");
+
+    // Clear to white
+    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
 }
 
-void NESEmu::NESEmuSdlApp::run()
+void NESEmu::NESEmuSdlApp::handleSdlEvents()
 {
     SDL_Event e;
-    bool      quit = false;
-    while (!quit) {
-        while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_EVENT_QUIT) {
-                quit = true;
-            }
+    while (SDL_PollEvent(&e)) {
+        if (e.type == SDL_EVENT_QUIT) {
+            mRunning = false;
         }
-
-        SDL_SetRenderDrawColor(mRenderer, 255, 0, 0, 255);
-        SDL_RenderClear(mRenderer);
-        SDL_RenderPresent(mRenderer);
-        SDL_Delay(1);
     }
 }
 
-void NESEmu::NESEmuSdlApp::shutdown()
+void NESEmu::NESEmuSdlApp::shutdownSdl() const
 {
     SDL_DestroyRenderer(mRenderer);
     SDL_DestroyWindow(mWindow);
     SDL_Quit();
+}
+
+void NESEmu::NESEmuSdlApp::handleMainLoop()
+{
+    const float kFrameRate = static_cast<float>(System::kMasterClockFrameCycles) / static_cast<float>(mSystem->targetMasterFrameCycles());
+    const float kFrameTime = 1000.f / static_cast<float>(kFrameRate);
+
+    mElapsedTime += static_cast<float>(SDL_GetTicks()) - mElapsedTime;
+
+    if (mElapsedTime >= mNextFrame) {
+        float delta = mElapsedTime - mNextFrame;
+
+        // Make sure we don't render faster than our framerate
+        delta = delta > kFrameTime ? kFrameTime : delta;
+
+        // Determine how much time was spent idle this frame since the end of the last emulation step
+        mIdleTime += mNextFrame - mLastFrame;
+        ++mTotalFrames;
+
+        // Calculate the idle time over the last second and reset counters
+        if (static_cast<float>(mTotalFrames) >= kFrameRate) {
+            mAvgIdleTime = mIdleTime / static_cast<float>(mTotalFrames);
+            mIdleTime    = 0;
+            mTotalFrames = 0;
+        }
+
+        // Set the next target frame update time
+        mNextFrame = mElapsedTime + kFrameTime - delta;
+
+        update();
+        render();
+
+        // Calculate the last frame time after emulation step
+        mLastFrame = static_cast<float>(SDL_GetTicks());
+    } else if (mNextFrame - mElapsedTime > 1.f) {
+        // Wait a bit if we can, so we don't hog the cpu
+        SDL_Delay(1);
+    }
+}
+
+void NESEmu::NESEmuSdlApp::update()
+{
+    if (mSystem->cartridgeLoaded()) {
+        mSystem->runFrame();
+    }
+}
+
+void NESEmu::NESEmuSdlApp::render()
+{
+    SDL_RenderClear(mRenderer);
+
+    if (mSystem->cartridgeLoaded()) {
+        // TODO: Convert to shader instead of software rendering
+        auto frameBuffer = mSystem->frameBuffer();
+    }
+
+    SDL_RenderPresent(mRenderer);
 }
