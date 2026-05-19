@@ -18,6 +18,7 @@ public:
     void startup(const Cartridge& cartridge);
     void reset();
     void runFrame();
+    void shutdown();
 
     // TODO: Handle one dot less every other PPU frame when rendering is enabled
     [[nodiscard]] constexpr uint32 targetMasterFrameCycles() const { return kMasterClockFrameCycles; }

@@ -9,6 +9,7 @@ target_sources(NESEmuCore
         src/dma.cpp
         src/mapper_nrom.cpp
         src/ppu.cpp
+        src/palette.cpp
         src/rp2a03.cpp
         src/system.cpp
 
@@ -27,6 +28,7 @@ target_sources(NESEmuCore
             include/NESEmuCore/interrupt_lines.hpp
             include/NESEmuCore/mapper_nrom.hpp
             include/NESEmuCore/memory.hpp
+            include/NESEmuCore/palette.hpp
             include/NESEmuCore/ppu.hpp
             include/NESEmuCore/rp2a03.hpp
             include/NESEmuCore/system.hpp

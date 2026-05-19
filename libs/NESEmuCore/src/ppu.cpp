@@ -2,6 +2,7 @@
 
 #include "NESEmuCore/interrupt_lines.hpp"
 
+#include <algorithm>
 #include <cassert>
 
 using namespace NESEmu;
@@ -20,8 +21,12 @@ void Ppu::reset()
 void Ppu::executeUntil(const uint64 targetPpuCycles)
 {
     while (m_cycles < targetPpuCycles) {
-        m_cycles++;
+        // TODO: Temp code to get something on screen - select a random palette index based on current scanline
+        m_internalFrameBuffer[m_scanline][m_dotCycle] = m_scanline & 0x3F;
+
         m_dotCycle++;
+        m_cycles++;
+
         if (m_dotCycle >= kFrameScanlineWidth) {
             m_dotCycle = 0;
             advanceScanline();
@@ -95,11 +100,23 @@ void Ppu::advanceScanline()
             break;
         case kFramePreRenderStart:
             m_ppuStatus.vBlank(false);
+            updateVisibleFrameBuffer();
             break;
         case kFrameScanlineMax:
             m_scanline = 0;
             break;
         default:
             break;
+    }
+}
+
+void Ppu::updateVisibleFrameBuffer()
+{
+    for (int y = 0; y < kScreenDotHeight; ++y) {
+        std::copy_n(
+            m_internalFrameBuffer[y].begin(),
+            kScreenDotWidth,
+            m_visibleFrameBuffer.begin() + y * kScreenDotWidth
+            );
     }
 }

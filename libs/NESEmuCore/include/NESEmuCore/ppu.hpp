@@ -144,7 +144,7 @@ public:
     [[nodiscard]] const PpuMask&   ppuMask() const { return m_ppuMask; }
     [[nodiscard]] const PpuStatus& ppuStatus() const { return m_ppuStatus; }
 
-    [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_frameBuffer; }
+    [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_visibleFrameBuffer; }
 
     [[nodiscard]] uint8 read(uint16 address);
     void                write(uint16 address, uint8 data);
@@ -152,8 +152,11 @@ public:
 private:
     inline uint8 readStatus();
     inline void  advanceScanline();
+    void         updateVisibleFrameBuffer();
 
 private:
+    using InternalFrameBuffer = std::array<std::array<PaletteIndex, kFrameScanlineWidth>, kFrameScanlineMax>;
+
     PpuBus&         m_ppuBus;
     InterruptLines& m_interruptLines;
 
@@ -169,7 +172,8 @@ private:
     uint16 m_scanline{};
     uint64 m_cycles{};
 
-    FrameBuffer m_frameBuffer{};
+    InternalFrameBuffer m_internalFrameBuffer{};
+    FrameBuffer         m_visibleFrameBuffer{};
 };
 }
 

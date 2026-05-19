@@ -41,3 +41,10 @@ void NESEmu::System::runFrame()
         m_ppu.executeUntil(m_clock.ppuCycles());
     }
 }
+
+void NESEmu::System::shutdown()
+{
+    reset();
+    
+    mCartridgeLoaded = false;
+}

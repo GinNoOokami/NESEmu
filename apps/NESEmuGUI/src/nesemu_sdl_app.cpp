@@ -2,6 +2,7 @@
 
 #include "NESEmuGUI/nesemu_sdl_app.hpp"
 
+#include "NESEmuCore/palette.hpp"
 #include "NESEmuCore/system.hpp"
 
 #include <SDL3/SDL.h>
@@ -10,13 +11,17 @@
 #include <stdexcept>
 
 NESEmu::NESEmuSdlApp::NESEmuSdlApp()
-    : mSystem(std::make_unique<System>()) {}
+    : mSystem(std::make_unique<System>()), mPalette(Palette::defaultPalette) {}
 
 NESEmu::NESEmuSdlApp::~NESEmuSdlApp() = default;
 
-void NESEmu::NESEmuSdlApp::initialize()
+void NESEmu::NESEmuSdlApp::initialize(NESEmuArgs args)
 {
     initSdl();
+
+    if (!args.cartridgeFilename.empty() && std::filesystem::exists(args.cartridgeFilename)) {
+        loadAndPlayCartridge(args.cartridgeFilename);
+    }
 
     mInitialized = true;
 }
@@ -34,7 +39,10 @@ void NESEmu::NESEmuSdlApp::run()
 void NESEmu::NESEmuSdlApp::shutdown()
 {
     if (mInitialized) {
+        stopAndUnloadCartridge();
         shutdownSdl();
+
+        mInitialized = false;
     }
 }
 
@@ -46,18 +54,31 @@ void NESEmu::NESEmuSdlApp::initSdl()
 
     if (!SDL_CreateWindowAndRenderer(
         "NESEmuGUI",
-        kScreenDotWidth,
-        kScreenDotHeight,
+        kScreenDotWidth * kScreenScale,
+        kScreenDotHeight * kScreenScale,
         0,
         &mWindow,
         &mRenderer)) {
         throw std::runtime_error("Failed to create window/renderer");
     }
 
-    SDL_SetWindowTitle(mWindow, "NES Emulator");
+    mTexture = SDL_CreateTexture(
+        mRenderer,
+        SDL_PIXELFORMAT_RGBA8888,
+        SDL_TEXTUREACCESS_STREAMING,
+        kScreenDotWidth,
+        kScreenDotHeight);
+    if (!mTexture) {
+        throw std::runtime_error("Failed to create main texture");
+    }
+
+    // Set point filtering
+    SDL_SetTextureScaleMode(mTexture, SDL_SCALEMODE_NEAREST);
 
     // Clear to white
     SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
+
+    SDL_SetWindowTitle(mWindow, "NES Emulator");
 }
 
 void NESEmu::NESEmuSdlApp::handleSdlEvents()
@@ -72,9 +93,23 @@ void NESEmu::NESEmuSdlApp::handleSdlEvents()
 
 void NESEmu::NESEmuSdlApp::shutdownSdl() const
 {
+    SDL_DestroyTexture(mTexture);
     SDL_DestroyRenderer(mRenderer);
     SDL_DestroyWindow(mWindow);
     SDL_Quit();
+}
+
+void NESEmu::NESEmuSdlApp::loadAndPlayCartridge(const std::string& filename)
+{
+    mCartridge = Cartridge::createFromFile(filename);
+    mSystem->startup(*mCartridge);
+}
+
+void NESEmu::NESEmuSdlApp::stopAndUnloadCartridge()
+{
+    if (mSystem->cartridgeLoaded()) {
+        mSystem->shutdown();
+    }
 }
 
 void NESEmu::NESEmuSdlApp::handleMainLoop()
@@ -127,9 +162,31 @@ void NESEmu::NESEmuSdlApp::render()
     SDL_RenderClear(mRenderer);
 
     if (mSystem->cartridgeLoaded()) {
-        // TODO: Convert to shader instead of software rendering
-        auto frameBuffer = mSystem->frameBuffer();
+        updateFrameTexture();
+        SDL_RenderTexture(mRenderer, mTexture, nullptr, nullptr);
     }
 
     SDL_RenderPresent(mRenderer);
+}
+
+void NESEmu::NESEmuSdlApp::updateFrameTexture()
+{
+    const auto frameBuffer = mSystem->frameBuffer();
+
+    uint32_t* pixels;
+    int       pitch;
+
+    // TODO: Convert to shader instead of software rendering
+    if (SDL_LockTexture(mTexture, nullptr, reinterpret_cast<void**>(&pixels), &pitch)) {
+        const int texturePitchPixels = pitch / static_cast<int>(sizeof(uint32_t));
+
+        for (int y = 0; y < kScreenDotHeight; ++y) {
+            for (int x = 0; x < kScreenDotWidth; ++x) {
+                const PaletteIndex index = frameBuffer[y * kScreenDotWidth + x];
+
+                pixels[y * texturePitchPixels + x] = mPalette.getColor(index);
+            }
+        }
+        SDL_UnlockTexture(mTexture);
+    }
 }
