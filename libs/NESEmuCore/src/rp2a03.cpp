@@ -18,14 +18,14 @@ void Rp2A03::execute()
     m_dma.active() ? m_dma.execute() : m_cpu.execute();
 }
 
-uint8 Rp2A03::read(const uint16 address)
+uint8 Rp2A03::onCpuRead(const uint16 address)
 {
     // TODO: Apu/IO registers
     // Note: Open bus behavior will be incorrect here
     return 0;
 }
 
-void Rp2A03::write(uint16 address, uint8 data)
+void Rp2A03::onCpuWrite(uint16 address, uint8 data)
 {
     if (address == Registers::kOamDmaTransfer) {
         m_dma.requestOamDma(data);

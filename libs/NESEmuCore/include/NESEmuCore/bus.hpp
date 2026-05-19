@@ -32,10 +32,10 @@ CPU Memory Map
 
 namespace NESEmu {
 template <typename T>
-concept BusDevice = requires(T& device, uint16 addr, uint8 data)
+concept CpuBusDevice = requires(T& device, uint16 addr, uint8 data)
 {
-    { device.read(addr) } -> std::same_as<uint8>;
-    { device.write(addr, data) };
+    { device.onCpuRead(addr) } -> std::same_as<uint8>;
+    { device.onCpuWrite(addr, data) };
 };
 
 enum class AddressRegion : uint8 {
@@ -51,7 +51,7 @@ enum class AddressRegion : uint8 {
 
 class MainBus {
 public:
-    template <BusDevice T>
+    template <CpuBusDevice T>
     void attachRegion(AddressRegion address, T& dev) { m_regions[static_cast<uint8>(address)] = makeHandler(dev); }
 
     void                write(uint16 address, uint8 data);
@@ -70,17 +70,17 @@ private:
         static void  writeUnmapped(void*, uint16, uint8) {}
     };
 
-    template <BusDevice T>
+    template <CpuBusDevice T>
     static constexpr Handler makeHandler(T& device)
     {
         return {
-            +[](void* ctx, uint16 addr) { return static_cast<T*>(ctx)->read(addr); },
-            +[](void* ctx, uint16 addr, uint8 data) { static_cast<T*>(ctx)->write(addr, data); },
+            +[](void* ctx, uint16 addr) { return static_cast<T*>(ctx)->onCpuRead(addr); },
+            +[](void* ctx, uint16 addr, uint8 data) { static_cast<T*>(ctx)->onCpuWrite(addr, data); },
             &device
         };
     }
 
-    [[nodiscard]] const Handler& getHandler(uint16 address) const
+    [[nodiscard]] const Handler& getHandler(const uint16 address) const
     {
         // The CE select uses the 3 highest bits on the address line
         return m_regions[(address >> 13) & kAddressRegionMask];

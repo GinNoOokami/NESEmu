@@ -20,8 +20,8 @@ public:
     void reset();
     void execute();
 
-    [[nodiscard]] uint8 read(uint16 address);
-    void                write(uint16 address, uint8 data);
+    [[nodiscard]] uint8 onCpuRead(uint16 address);
+    void                onCpuWrite(uint16 address, uint8 data);
 
 private:
     Clock& m_clock;

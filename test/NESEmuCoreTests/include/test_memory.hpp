@@ -6,8 +6,8 @@
 namespace NESEmu {
 class TestRam {
 public:
-    [[nodiscard]] uint8 read(uint16_t address) const { return m_memory[address]; }
-    void                write(uint16 address, uint8 data) { m_memory[address] = data; }
+    [[nodiscard]] uint8 onCpuRead(uint16_t address) const { return m_memory[address]; }
+    void                onCpuWrite(uint16 address, uint8 data) { m_memory[address] = data; }
 
 private:
     // Tests can use the full 64kb address space

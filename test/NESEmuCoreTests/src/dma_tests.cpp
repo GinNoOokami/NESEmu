@@ -49,8 +49,8 @@ TEST_CASE("OAM DMA")
 
         // Ensure OAM data is written to PPU
         for (uint16 i = 0; i < 256; ++i) {
-            ppu.write(kOamAddrRegister, i);
-            CHECK_EQ(ppu.read(kOamDataRegister), i);
+            ppu.onCpuWrite(kOamAddrRegister, i);
+            CHECK_EQ(ppu.onCpuRead(kOamDataRegister), i);
         }
     }
 }

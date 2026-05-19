@@ -8,8 +8,8 @@
 namespace NESEmu {
 class WorkRam {
 public:
-    [[nodiscard]] uint8 read(const uint16 address) const { return m_memory[address & kAddressMirrorMask]; }
-    void                write(const uint16 address, const uint8 data) { m_memory[address & kAddressMirrorMask] = data; }
+    [[nodiscard]] uint8 onCpuRead(const uint16 address) const { return m_memory[address & kAddressMirrorMask]; }
+    void                onCpuWrite(const uint16 address, const uint8 data) { m_memory[address & kAddressMirrorMask] = data; }
 
 private:
     static constexpr uint16 kAddressMirrorMask = 0b0000011111111111;

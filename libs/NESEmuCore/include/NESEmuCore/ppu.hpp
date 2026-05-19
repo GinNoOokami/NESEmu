@@ -146,8 +146,8 @@ public:
 
     [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_visibleFrameBuffer; }
 
-    [[nodiscard]] uint8 read(uint16 address);
-    void                write(uint16 address, uint8 data);
+    [[nodiscard]] uint8 onCpuRead(uint16 address);
+    void                onCpuWrite(uint16 address, uint8 data);
 
 private:
     inline uint8 readStatus();

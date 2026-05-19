@@ -17,23 +17,23 @@ TEST_CASE("PPUCTRL")
     SUBCASE("write") {
         SUBCASE("baseNametableAddress returns expected") {
             SUBCASE("$2000") {
-                ppu.write(ppuCtrl, 0xF0);
+                ppu.onCpuWrite(ppuCtrl, 0xF0);
 
                 CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 0);
             }
             SUBCASE("$2400") {
-                ppu.write(ppuCtrl, 0xF1);
+                ppu.onCpuWrite(ppuCtrl, 0xF1);
 
                 CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 1);
             }
 
             SUBCASE("$2800") {
-                ppu.write(ppuCtrl, 0xF2);
+                ppu.onCpuWrite(ppuCtrl, 0xF2);
 
                 CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 2);
             }
             SUBCASE("$2C00") {
-                ppu.write(ppuCtrl, 0xF3);
+                ppu.onCpuWrite(ppuCtrl, 0xF3);
 
                 CHECK_EQ(ppu.ppuCtrl().baseNametableAddress(), 3);
             }
@@ -41,12 +41,12 @@ TEST_CASE("PPUCTRL")
 
         SUBCASE("ramAddressIncrement returns expected") {
             SUBCASE("across") {
-                ppu.write(ppuCtrl, 0xFB);
+                ppu.onCpuWrite(ppuCtrl, 0xFB);
 
                 CHECK_FALSE(ppu.ppuCtrl().ramAddressIncrement());
             }
             SUBCASE("down") {
-                ppu.write(ppuCtrl, 0xF4);
+                ppu.onCpuWrite(ppuCtrl, 0xF4);
 
                 CHECK(ppu.ppuCtrl().ramAddressIncrement());
             }
@@ -54,12 +54,12 @@ TEST_CASE("PPUCTRL")
 
         SUBCASE("spritePatternTableAddress returns expected") {
             SUBCASE("$0000") {
-                ppu.write(ppuCtrl, 0xF7);
+                ppu.onCpuWrite(ppuCtrl, 0xF7);
 
                 CHECK_FALSE(ppu.ppuCtrl().spritePatternTableAddress());
             }
             SUBCASE("$1000") {
-                ppu.write(ppuCtrl, 0xF8);
+                ppu.onCpuWrite(ppuCtrl, 0xF8);
 
                 CHECK(ppu.ppuCtrl().spritePatternTableAddress());
             }
@@ -67,12 +67,12 @@ TEST_CASE("PPUCTRL")
 
         SUBCASE("backgroundPatternTableAddress returns expected") {
             SUBCASE("$0000") {
-                ppu.write(ppuCtrl, 0xEF);
+                ppu.onCpuWrite(ppuCtrl, 0xEF);
 
                 CHECK_FALSE(ppu.ppuCtrl().backgroundPatternTableAddress());
             }
             SUBCASE("$1000") {
-                ppu.write(ppuCtrl, 0xFF);
+                ppu.onCpuWrite(ppuCtrl, 0xFF);
 
                 CHECK(ppu.ppuCtrl().backgroundPatternTableAddress());
             }
@@ -80,12 +80,12 @@ TEST_CASE("PPUCTRL")
 
         SUBCASE("spriteSize returns expected") {
             SUBCASE("8x8") {
-                ppu.write(ppuCtrl, 0xDF);
+                ppu.onCpuWrite(ppuCtrl, 0xDF);
 
                 CHECK_FALSE(ppu.ppuCtrl().spriteSize());
             }
             SUBCASE("8x16") {
-                ppu.write(ppuCtrl, 0x7F);
+                ppu.onCpuWrite(ppuCtrl, 0x7F);
 
                 CHECK(ppu.ppuCtrl().spriteSize());
             }
@@ -93,33 +93,33 @@ TEST_CASE("PPUCTRL")
 
         SUBCASE("masterSlaveSelect returns expected") {
             SUBCASE("read backdrop") {
-                ppu.write(ppuCtrl, 0xAF);
+                ppu.onCpuWrite(ppuCtrl, 0xAF);
 
                 CHECK_FALSE(ppu.ppuCtrl().masterSlaveSelect());
             }
             SUBCASE("output color") {
-                ppu.write(ppuCtrl, 0xFF);
+                ppu.onCpuWrite(ppuCtrl, 0xFF);
                 CHECK(ppu.ppuCtrl().masterSlaveSelect());
             }
         }
 
         SUBCASE("enableNmi returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuCtrl, 0x7F);
+                ppu.onCpuWrite(ppuCtrl, 0x7F);
 
                 CHECK_FALSE(ppu.ppuCtrl().nmiEnable());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuCtrl, 0xFF);
+                ppu.onCpuWrite(ppuCtrl, 0xFF);
 
                 CHECK(ppu.ppuCtrl().nmiEnable());
             }
         }
     }
     SUBCASE("reads open bus latch") {
-        ppu.write(ppuCtrl, 0x55);
+        ppu.onCpuWrite(ppuCtrl, 0x55);
 
-        CHECK_EQ(ppu.read(ppuCtrl), 0x55);
+        CHECK_EQ(ppu.onCpuRead(ppuCtrl), 0x55);
     }
 }
 
@@ -133,12 +133,12 @@ TEST_CASE("PPUMASK")
     SUBCASE("write") {
         SUBCASE("greyscale returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuMask, 0xF0);
+                ppu.onCpuWrite(ppuMask, 0xF0);
 
                 CHECK_FALSE(ppu.ppuMask().greyscale());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuMask, 0xF1);
+                ppu.onCpuWrite(ppuMask, 0xF1);
 
                 CHECK(ppu.ppuMask().greyscale());
             }
@@ -146,24 +146,24 @@ TEST_CASE("PPUMASK")
 
         SUBCASE("backgroundColumnMask returns expected") {
             SUBCASE("hidden") {
-                ppu.write(ppuMask, 0xF1);
+                ppu.onCpuWrite(ppuMask, 0xF1);
 
                 CHECK_FALSE(ppu.ppuMask().backgroundColumnMask());
             }
             SUBCASE("shown") {
-                ppu.write(ppuMask, 0xF2);
+                ppu.onCpuWrite(ppuMask, 0xF2);
 
                 CHECK(ppu.ppuMask().backgroundColumnMask());
             }
         }
         SUBCASE("spriteColumnMask returns expected") {
             SUBCASE("hidden") {
-                ppu.write(ppuMask, 0xF1);
+                ppu.onCpuWrite(ppuMask, 0xF1);
 
                 CHECK_FALSE(ppu.ppuMask().spriteColumnMask());
             }
             SUBCASE("shown") {
-                ppu.write(ppuMask, 0xF4);
+                ppu.onCpuWrite(ppuMask, 0xF4);
 
                 CHECK(ppu.ppuMask().spriteColumnMask());
             }
@@ -171,12 +171,12 @@ TEST_CASE("PPUMASK")
 
         SUBCASE("backgroundEnabled returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuMask, 0xF3);
+                ppu.onCpuWrite(ppuMask, 0xF3);
 
                 CHECK_FALSE(ppu.ppuMask().backgroundEnabled());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuMask, 0xF8);
+                ppu.onCpuWrite(ppuMask, 0xF8);
 
                 CHECK(ppu.ppuMask().backgroundEnabled());
             }
@@ -184,12 +184,12 @@ TEST_CASE("PPUMASK")
 
         SUBCASE("spriteEnabled returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuMask, 0x0F);
+                ppu.onCpuWrite(ppuMask, 0x0F);
 
                 CHECK_FALSE(ppu.ppuMask().spriteEnabled());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuMask, 0x1F);
+                ppu.onCpuWrite(ppuMask, 0x1F);
 
                 CHECK(ppu.ppuMask().spriteEnabled());
             }
@@ -197,12 +197,12 @@ TEST_CASE("PPUMASK")
 
         SUBCASE("emphasizeRed returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuMask, 0x1F);
+                ppu.onCpuWrite(ppuMask, 0x1F);
 
                 CHECK_FALSE(ppu.ppuMask().emphasizeRed());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuMask, 0x2F);
+                ppu.onCpuWrite(ppuMask, 0x2F);
 
                 CHECK(ppu.ppuMask().emphasizeRed());
             }
@@ -210,12 +210,12 @@ TEST_CASE("PPUMASK")
 
         SUBCASE("emphasizeGreen returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuMask, 0x3F);
+                ppu.onCpuWrite(ppuMask, 0x3F);
 
                 CHECK_FALSE(ppu.ppuMask().emphasizeGreen());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuMask, 0x4F);
+                ppu.onCpuWrite(ppuMask, 0x4F);
 
                 CHECK(ppu.ppuMask().emphasizeGreen());
             }
@@ -223,12 +223,12 @@ TEST_CASE("PPUMASK")
 
         SUBCASE("emphasizeBlue returns expected") {
             SUBCASE("disabled") {
-                ppu.write(ppuMask, 0x7F);
+                ppu.onCpuWrite(ppuMask, 0x7F);
 
                 CHECK_FALSE(ppu.ppuMask().emphasizeBlue());
             }
             SUBCASE("enabled") {
-                ppu.write(ppuMask, 0x8F);
+                ppu.onCpuWrite(ppuMask, 0x8F);
 
                 CHECK(ppu.ppuMask().emphasizeBlue());
             }
@@ -236,9 +236,9 @@ TEST_CASE("PPUMASK")
     }
 
     SUBCASE("reads open bus latch") {
-        ppu.write(ppuMask, 0x55);
+        ppu.onCpuWrite(ppuMask, 0x55);
 
-        CHECK_EQ(ppu.read(ppuMask), 0x55);
+        CHECK_EQ(ppu.onCpuRead(ppuMask), 0x55);
     }
 }
 
@@ -250,16 +250,16 @@ TEST_CASE("PPUSTATUS")
     Ppu              ppu(ppuBus, interruptLines);
 
     SUBCASE("write does not affect register bits") {
-        ppu.write(ppuStatus, 0xFF);
+        ppu.onCpuWrite(ppuStatus, 0xFF);
 
-        CHECK_EQ(ppu.read(ppuStatus) & 0x1110'0000, 0);
+        CHECK_EQ(ppu.onCpuRead(ppuStatus) & 0x1110'0000, 0);
     }
 
     SUBCASE("write returns open data latch on non-register bits") {
-        ppu.write(ppuStatus, 0xFF);
+        ppu.onCpuWrite(ppuStatus, 0xFF);
 
         // Lower 5 bits should return open bus data latch, which is set during the write
-        CHECK_EQ(ppu.read(ppuStatus), 0x1F);
+        CHECK_EQ(ppu.onCpuRead(ppuStatus), 0x1F);
     }
 
     SUBCASE("read vBlank") {
@@ -304,7 +304,7 @@ TEST_CASE("PPUSTATUS")
 
             // Put the PPU in vBlank state and read the status register
             ppu.executeUntil(Ppu::kFrameScanlineWidth * 242);
-            auto _ = ppu.read(ppuStatus);
+            auto _ = ppu.onCpuRead(ppuStatus);
 
             CHECK_FALSE(ppu.ppuStatus().vBlank());
         }
@@ -320,31 +320,31 @@ TEST_CASE("OAMADDR/OAMDATA")
     Ppu              ppu(ppuBus, interruptLines);
 
     SUBCASE("OAMADDR write sets internal address") {
-        ppu.write(oamAddr, 0x10);
+        ppu.onCpuWrite(oamAddr, 0x10);
 
-        CHECK((ppu.read(oamAddr) == 0x10));
+        CHECK((ppu.onCpuRead(oamAddr) == 0x10));
     }
 
     SUBCASE("OAMDATA write increments OAMADDR") {
-        ppu.write(oamAddr, 0x00);
-        ppu.write(oamData, 0xAB);
+        ppu.onCpuWrite(oamAddr, 0x00);
+        ppu.onCpuWrite(oamData, 0xAB);
 
-        CHECK((ppu.read(oamAddr) == 0x01));
+        CHECK((ppu.onCpuRead(oamAddr) == 0x01));
     }
 
     SUBCASE("OAMDATA write wraps address from 0xFF to 0x00") {
-        ppu.write(oamAddr, 0xFF);
-        ppu.write(oamData, 0xCD);
+        ppu.onCpuWrite(oamAddr, 0xFF);
+        ppu.onCpuWrite(oamData, 0xCD);
 
-        CHECK((ppu.read(oamAddr) == 0x00));
+        CHECK((ppu.onCpuRead(oamAddr) == 0x00));
     }
 
     SUBCASE("OAMDATA read returns byte at current address") {
-        ppu.write(oamAddr, 0x20);
-        ppu.write(oamData, 0x5A);
-        ppu.write(oamAddr, 0x20);
+        ppu.onCpuWrite(oamAddr, 0x20);
+        ppu.onCpuWrite(oamData, 0x5A);
+        ppu.onCpuWrite(oamAddr, 0x20);
 
-        CHECK((ppu.read(oamData) == 0x5A));
+        CHECK((ppu.onCpuRead(oamData) == 0x5A));
     }
 }
 
@@ -356,7 +356,7 @@ TEST_CASE("NMI interrupt")
         Ppu            ppu(ppuBus, interruptLines);
 
         // Ensure NMI is enabled
-        ppu.write(0x2000, 0x80);
+        ppu.onCpuWrite(0x2000, 0x80);
 
         ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
 
@@ -369,7 +369,7 @@ TEST_CASE("NMI interrupt")
         Ppu            ppu(ppuBus, interruptLines);
 
         // Ensure NMI is disabled
-        ppu.write(0x2000, 0x00);
+        ppu.onCpuWrite(0x2000, 0x00);
 
         ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
 

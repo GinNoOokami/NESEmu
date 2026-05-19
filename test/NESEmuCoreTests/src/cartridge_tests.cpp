@@ -32,7 +32,7 @@ TEST_CASE("Load NROM cartridge initializes CPU PC to expected address")
     auto mapper    = cartridge->loadMapper();
 
     // Check that the reset vector address is in the correct location
-    CHECK_EQ(mapper->read(0x3FFC), 0x00);
-    CHECK_EQ(mapper->read(0x3FFD), 0x81);
+    CHECK_EQ(mapper->onCpuRead(0x3FFC), 0x00);
+    CHECK_EQ(mapper->onCpuRead(0x3FFD), 0x81);
 }
 }

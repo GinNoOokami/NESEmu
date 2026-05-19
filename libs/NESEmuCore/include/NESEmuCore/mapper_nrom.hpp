@@ -14,8 +14,8 @@ class MapperNRom {
 public:
     MapperNRom(std::ifstream& file, uint8 offset, uint16 prgRomSize, uint16 chrRomSize);
 
-    [[nodiscard]] uint8 read(uint16 address) { return m_prgRom[address & m_prgRomMask]; }
-    void                write(const uint16 address, const uint8 data) { m_prgRom[address] = data; }
+    [[nodiscard]] uint8 onCpuRead(uint16 address) { return m_prgRom[address & m_prgRomMask]; }
+    void                onCpuWrite(const uint16 address, const uint8 data) { m_prgRom[address] = data; }
 
 private:
     uint16 m_prgRomMask;
