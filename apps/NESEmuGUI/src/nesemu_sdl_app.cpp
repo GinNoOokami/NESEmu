@@ -11,7 +11,7 @@
 #include <stdexcept>
 
 NESEmu::NESEmuSdlApp::NESEmuSdlApp()
-    : mSystem(std::make_unique<System>()), mPalette(Palette::defaultPalette) {}
+    : m_system(std::make_unique<System>()), m_palette(Palette::defaultPalette) {}
 
 NESEmu::NESEmuSdlApp::~NESEmuSdlApp() = default;
 
@@ -23,14 +23,14 @@ void NESEmu::NESEmuSdlApp::initialize(NESEmuArgs args)
         loadAndPlayCartridge(args.cartridgeFilename);
     }
 
-    mInitialized = true;
+    m_initialized = true;
 }
 
 void NESEmu::NESEmuSdlApp::run()
 {
-    mRunning = true;
+    m_running = true;
 
-    while (mRunning) {
+    while (m_running) {
         handleSdlEvents();
         handleMainLoop();
     }
@@ -38,11 +38,11 @@ void NESEmu::NESEmuSdlApp::run()
 
 void NESEmu::NESEmuSdlApp::shutdown()
 {
-    if (mInitialized) {
+    if (m_initialized) {
         stopAndUnloadCartridge();
         shutdownSdl();
 
-        mInitialized = false;
+        m_initialized = false;
     }
 }
 
@@ -57,28 +57,28 @@ void NESEmu::NESEmuSdlApp::initSdl()
         kScreenDotWidth * kScreenScale,
         kScreenDotHeight * kScreenScale,
         0,
-        &mWindow,
-        &mRenderer)) {
+        &m_window,
+        &m_renderer)) {
         throw std::runtime_error("Failed to create window/renderer");
     }
 
-    mTexture = SDL_CreateTexture(
-        mRenderer,
+    m_texture = SDL_CreateTexture(
+        m_renderer,
         SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_STREAMING,
         kScreenDotWidth,
         kScreenDotHeight);
-    if (!mTexture) {
+    if (!m_texture) {
         throw std::runtime_error("Failed to create main texture");
     }
 
     // Set point filtering
-    SDL_SetTextureScaleMode(mTexture, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureScaleMode(m_texture, SDL_SCALEMODE_NEAREST);
 
     // Clear to white
-    SDL_SetRenderDrawColor(mRenderer, 255, 255, 255, 255);
+    SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
 
-    SDL_SetWindowTitle(mWindow, "NES Emulator");
+    SDL_SetWindowTitle(m_window, "NES Emulator");
 }
 
 void NESEmu::NESEmuSdlApp::handleSdlEvents()
@@ -86,65 +86,65 @@ void NESEmu::NESEmuSdlApp::handleSdlEvents()
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) {
-            mRunning = false;
+            m_running = false;
         }
     }
 }
 
 void NESEmu::NESEmuSdlApp::shutdownSdl() const
 {
-    SDL_DestroyTexture(mTexture);
-    SDL_DestroyRenderer(mRenderer);
-    SDL_DestroyWindow(mWindow);
+    SDL_DestroyTexture(m_texture);
+    SDL_DestroyRenderer(m_renderer);
+    SDL_DestroyWindow(m_window);
     SDL_Quit();
 }
 
 void NESEmu::NESEmuSdlApp::loadAndPlayCartridge(const std::string& filename)
 {
-    mCartridge = Cartridge::createFromFile(filename);
-    mSystem->startup(*mCartridge);
+    m_cartridge = Cartridge::createFromFile(filename);
+    m_system->startup(*m_cartridge);
 }
 
 void NESEmu::NESEmuSdlApp::stopAndUnloadCartridge()
 {
-    if (mSystem->cartridgeLoaded()) {
-        mSystem->shutdown();
+    if (m_system->cartridgeLoaded()) {
+        m_system->shutdown();
     }
 }
 
 void NESEmu::NESEmuSdlApp::handleMainLoop()
 {
-    const float kFrameRate = static_cast<float>(System::kMasterClockFrameCycles) / static_cast<float>(mSystem->targetMasterFrameCycles());
+    const float kFrameRate = static_cast<float>(System::kMasterClockFrameCycles) / static_cast<float>(m_system->targetMasterFrameCycles());
     const float kFrameTime = 1000.f / static_cast<float>(kFrameRate);
 
-    mElapsedTime += static_cast<float>(SDL_GetTicks()) - mElapsedTime;
+    m_elapsedTime += static_cast<float>(SDL_GetTicks()) - m_elapsedTime;
 
-    if (mElapsedTime >= mNextFrame) {
-        float delta = mElapsedTime - mNextFrame;
+    if (m_elapsedTime >= m_nextFrame) {
+        float delta = m_elapsedTime - m_nextFrame;
 
         // Make sure we don't render faster than our framerate
         delta = delta > kFrameTime ? kFrameTime : delta;
 
         // Determine how much time was spent idle this frame since the end of the last emulation step
-        mIdleTime += mNextFrame - mLastFrame;
-        ++mTotalFrames;
+        m_idleTime += m_nextFrame - m_lastFrame;
+        ++m_totalFrames;
 
         // Calculate the idle time over the last second and reset counters
-        if (static_cast<float>(mTotalFrames) >= kFrameRate) {
-            mAvgIdleTime = mIdleTime / static_cast<float>(mTotalFrames);
-            mIdleTime    = 0;
-            mTotalFrames = 0;
+        if (static_cast<float>(m_totalFrames) >= kFrameRate) {
+            m_avgIdleTime = m_idleTime / static_cast<float>(m_totalFrames);
+            m_idleTime    = 0;
+            m_totalFrames = 0;
         }
 
         // Set the next target frame update time
-        mNextFrame = mElapsedTime + kFrameTime - delta;
+        m_nextFrame = m_elapsedTime + kFrameTime - delta;
 
         update();
         render();
 
         // Calculate the last frame time after emulation step
-        mLastFrame = static_cast<float>(SDL_GetTicks());
-    } else if (mNextFrame - mElapsedTime > 1.f) {
+        m_lastFrame = static_cast<float>(SDL_GetTicks());
+    } else if (m_nextFrame - m_elapsedTime > 1.f) {
         // Wait a bit if we can, so we don't hog the cpu
         SDL_Delay(1);
     }
@@ -152,41 +152,41 @@ void NESEmu::NESEmuSdlApp::handleMainLoop()
 
 void NESEmu::NESEmuSdlApp::update()
 {
-    if (mSystem->cartridgeLoaded()) {
-        mSystem->runFrame();
+    if (m_system->cartridgeLoaded()) {
+        m_system->runFrame();
     }
 }
 
 void NESEmu::NESEmuSdlApp::render()
 {
-    SDL_RenderClear(mRenderer);
+    SDL_RenderClear(m_renderer);
 
-    if (mSystem->cartridgeLoaded()) {
+    if (m_system->cartridgeLoaded()) {
         updateFrameTexture();
-        SDL_RenderTexture(mRenderer, mTexture, nullptr, nullptr);
+        SDL_RenderTexture(m_renderer, m_texture, nullptr, nullptr);
     }
 
-    SDL_RenderPresent(mRenderer);
+    SDL_RenderPresent(m_renderer);
 }
 
 void NESEmu::NESEmuSdlApp::updateFrameTexture()
 {
-    const auto frameBuffer = mSystem->frameBuffer();
+    const auto frameBuffer = m_system->frameBuffer();
 
     uint32_t* pixels;
     int       pitch;
 
     // TODO: Convert to shader instead of software rendering
-    if (SDL_LockTexture(mTexture, nullptr, reinterpret_cast<void**>(&pixels), &pitch)) {
+    if (SDL_LockTexture(m_texture, nullptr, reinterpret_cast<void**>(&pixels), &pitch)) {
         const int texturePitchPixels = pitch / static_cast<int>(sizeof(uint32_t));
 
         for (int y = 0; y < kScreenDotHeight; ++y) {
             for (int x = 0; x < kScreenDotWidth; ++x) {
                 const PaletteIndex index = frameBuffer[y * kScreenDotWidth + x];
 
-                pixels[y * texturePitchPixels + x] = mPalette.getColor(index);
+                pixels[y * texturePitchPixels + x] = m_palette.getColor(index);
             }
         }
-        SDL_UnlockTexture(mTexture);
+        SDL_UnlockTexture(m_texture);
     }
 }

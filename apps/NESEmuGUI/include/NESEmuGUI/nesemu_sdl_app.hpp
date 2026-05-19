@@ -18,7 +18,7 @@ class System;
 
 class NESEmuSdlApp : public App<NESEmuArgs> {
     static constexpr uint8 kScreenScale = 4;
-    
+
 public:
     NESEmuSdlApp();
     ~NESEmuSdlApp() override;
@@ -40,23 +40,23 @@ private:
     void render();
     void updateFrameTexture();
 
-    SDL_Window*   mWindow{};
-    SDL_Renderer* mRenderer{};
-    SDL_Texture*  mTexture{};
+    SDL_Window*   m_window{};
+    SDL_Renderer* m_renderer{};
+    SDL_Texture*  m_texture{};
 
-    std::unique_ptr<Cartridge> mCartridge{};
-    std::unique_ptr<System>    mSystem{};
-    const Palette&             mPalette;
+    std::unique_ptr<Cartridge> m_cartridge{};
+    std::unique_ptr<System>    m_system{};
+    const Palette&             m_palette;
 
-    float    mElapsedTime{};
-    float    mNextFrame{};
-    float    mLastFrame{};
-    float    mIdleTime{};
-    float    mAvgIdleTime{};
-    uint32_t mTotalFrames{};
+    float    m_elapsedTime{};
+    float    m_nextFrame{};
+    float    m_lastFrame{};
+    float    m_idleTime{};
+    float    m_avgIdleTime{};
+    uint32_t m_totalFrames{};
 
-    bool mInitialized{};
-    bool mRunning{};
+    bool m_initialized{};
+    bool m_running{};
 };
 }
 
