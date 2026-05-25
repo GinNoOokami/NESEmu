@@ -16,6 +16,8 @@ uint8 MainBus::read(const uint16 address)
 
 void PpuBus::write(const uint16 address, const uint8 data) const
 {
+    // IDE is throwing a false positive warning "condition always true" here
+    // ReSharper disable once CppDFAConstantConditions
     if (m_isCiRamEnabled && address >= 0x2000) {
         const auto ciramAddress = toLogicalCiRamAddress(address);
         m_ciram.write(ciramAddress, data);
@@ -26,6 +28,8 @@ void PpuBus::write(const uint16 address, const uint8 data) const
 
 uint8 PpuBus::read(const uint16 address) const
 {
+    // IDE is throwing a false positive warning "condition always true" here
+    // ReSharper disable once CppDFAConstantConditions
     if (m_isCiRamEnabled && address >= 0x2000) {
         const auto ciramAddress = toLogicalCiRamAddress(address);
         return m_ciram.read(ciramAddress);
