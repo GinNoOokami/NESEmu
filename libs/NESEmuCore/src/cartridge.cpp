@@ -32,7 +32,12 @@ std::unique_ptr<MapperNRom> Cartridge::loadMapper() const
         throw std::runtime_error("Invalid ROM path: " + m_info.path.string());
     }
 
-    return std::make_unique<MapperNRom>(file, m_info.headerOffset, m_info.prgRomSizeBytes, m_info.chrRomSizeBytes);
+    return std::make_unique<MapperNRom>(
+        file,
+        m_info.headerOffset,
+        m_info.prgRomSizeBytes,
+        m_info.chrRomSizeBytes,
+        m_info.isHorizontalMirrored);
 }
 
 Cartridge::Cartridge(CartridgeInfo info)
@@ -57,6 +62,11 @@ bool Cartridge::tryLoadiNESHeader(std::ifstream& file, CartridgeInfo& info)
     info.headerOffset    = sizeof(header);
     info.prgRomSizeBytes = header.prgRomSize * 16384;
     info.chrRomSizeBytes = header.chrRomSize * 8192;
+
+    // Flag 1 Bit 0 - nametable arrangement
+    // 0: vertical arrangement ("horizontal mirrored") (CIRAM A10 = PPU A11)
+    // 1: horizontal arrangement ("vertically mirrored") (CIRAM A10 = PPU A10)
+    info.isHorizontalMirrored = !(header.flag1 & 0x01);
 
     uint8 lo    = header.flag1 & 0xF0;
     uint8 hi    = header.flag2 & 0xF0;

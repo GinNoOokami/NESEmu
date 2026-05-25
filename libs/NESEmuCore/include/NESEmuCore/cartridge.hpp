@@ -35,11 +35,12 @@ public:
         uint32                chrRomSizeBytes;
         uint16                mapper;
         uint8                 headerOffset;
+        bool                  isHorizontalMirrored;
     };
 
     static std::unique_ptr<Cartridge> createFromFile(const std::filesystem::path& path);
 
-    explicit Cartridge(CartridgeInfo  info);
+    explicit Cartridge(CartridgeInfo info);
 
     [[nodiscard]] const CartridgeInfo& info() const { return m_info; }
 
