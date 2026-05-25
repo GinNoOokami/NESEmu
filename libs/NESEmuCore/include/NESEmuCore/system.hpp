@@ -8,7 +8,12 @@
 #include "ppu.hpp"
 #include "rp2a03.hpp"
 
+#include <memory>
+
 namespace NESEmu {
+class Cartridge;
+class MapperNRom;
+
 class System {
 public:
     static constexpr uint32 kMasterClockFrameCycles = 357368;
@@ -30,9 +35,10 @@ public:
 private:
     Clock          m_clock{};
     WorkRam        m_workRam{};
-    MainBus        m_mainBus{};
-    PpuBus         m_ppuBus{};
+    CiRam          m_ciRam{};
     InterruptLines m_interruptLines{};
+    MainBus        m_mainBus{};
+    PpuBus         m_ppuBus;
     Rp2A03         m_cpu;
     Ppu            m_ppu;
 

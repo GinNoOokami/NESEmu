@@ -16,6 +16,11 @@ public:
 
     [[nodiscard]] uint8 onCpuRead(uint16 address) { return m_prgRom[address & m_prgRomMask]; }
     void                onCpuWrite(const uint16 address, const uint8 data) { m_prgRom[address] = data; }
+    
+    [[nodiscard]] uint8       onPpuRead(uint16 address);
+    void                      onPpuWrite(uint16 address, uint8 data);
+    [[nodiscard]] static bool isCiRamEnabled() { return true; }
+    [[nodiscard]] static bool isHorizontalMirrored() { return false; }
 
 private:
     uint16 m_prgRomMask;

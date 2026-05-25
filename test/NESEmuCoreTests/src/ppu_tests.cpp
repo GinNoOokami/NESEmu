@@ -10,7 +10,8 @@ TEST_SUITE("PPU Tests") {
 TEST_CASE("PPUCTRL")
 {
     constexpr uint16 ppuCtrl = 0x2000;
-    PpuBus           ppuBus;
+    CiRam            ciram;
+    PpuBus           ppuBus(ciram);
     InterruptLines   interruptLines{};
     Ppu              ppu(ppuBus, interruptLines);
 
@@ -126,7 +127,8 @@ TEST_CASE("PPUCTRL")
 TEST_CASE("PPUMASK")
 {
     constexpr uint16 ppuMask = 0x2001;
-    PpuBus           ppuBus;
+    CiRam            ciram;
+    PpuBus           ppuBus(ciram);
     InterruptLines   interruptLines{};
     Ppu              ppu(ppuBus, interruptLines);
 
@@ -245,7 +247,8 @@ TEST_CASE("PPUMASK")
 TEST_CASE("PPUSTATUS")
 {
     constexpr uint16 ppuStatus = 0x2002;
-    PpuBus           ppuBus;
+    CiRam            ciram;
+    PpuBus           ppuBus(ciram);
     InterruptLines   interruptLines{};
     Ppu              ppu(ppuBus, interruptLines);
 
@@ -315,7 +318,8 @@ TEST_CASE("OAMADDR/OAMDATA")
 {
     constexpr uint16 oamAddr = 0x2003;
     constexpr uint16 oamData = 0x2004;
-    PpuBus           ppuBus;
+    CiRam            ciram;
+    PpuBus           ppuBus(ciram);
     InterruptLines   interruptLines{};
     Ppu              ppu(ppuBus, interruptLines);
 
@@ -351,7 +355,8 @@ TEST_CASE("OAMADDR/OAMDATA")
 TEST_CASE("NMI interrupt")
 {
     SUBCASE("when enabled triggers on first vBlank scanline") {
-        PpuBus         ppuBus;
+        CiRam          ciram;
+        PpuBus         ppuBus(ciram);
         InterruptLines interruptLines;
         Ppu            ppu(ppuBus, interruptLines);
 
@@ -364,7 +369,8 @@ TEST_CASE("NMI interrupt")
     }
 
     SUBCASE("when disabled does not trigger on first vBlank scanline") {
-        PpuBus         ppuBus;
+        CiRam          ciram;
+        PpuBus         ppuBus(ciram);
         InterruptLines interruptLines;
         Ppu            ppu(ppuBus, interruptLines);
 
@@ -374,6 +380,165 @@ TEST_CASE("NMI interrupt")
         ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
 
         CHECK_FALSE(interruptLines.nmiActive);
+    }
+}
+
+TEST_CASE("NAMETABLES")
+{
+    struct MirroringTestCartridge {
+        enum MirrorType {
+            kVertical,
+            kHorizontal,
+        };
+
+        explicit MirroringTestCartridge(const MirrorType type) : m_type(type) {}
+
+        static uint8 onPpuRead(uint16 addr) { return 0; }
+        static void  onPpuWrite(uint16 addr, uint8 data) {}
+
+        [[nodiscard]] static bool isCiRamEnabled() { return true; }
+        [[nodiscard]] bool        isHorizontalMirrored() const { return m_type == kHorizontal; }
+
+    private:
+        MirrorType m_type;
+    };
+
+    struct Case {
+        uint16      ppuBase;
+        uint16      ciramBase;
+        const char* name;
+    };
+
+    SUBCASE("write vertical mirroring: nametable address maps to expected CIRAM page") {
+        MirroringTestCartridge cartridge(MirroringTestCartridge::kVertical);
+        CiRam                  ciram;
+        PpuBus                 ppuBus(ciram);
+        ppuBus.attachCartridge(cartridge);
+
+        constexpr Case cases[] = {
+            { 0x2000, 0x000, "$2000 -> CIRAM $000" },
+            { 0x2400, 0x400, "$2400 -> CIRAM $400" },
+            { 0x2800, 0x000, "$2800 -> CIRAM $000 (mirrors $2000)" },
+            { 0x2C00, 0x400, "$2C00 -> CIRAM $400 (mirrors $2400)" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                for (uint16 i = 0; i < 0x400; ++i) {
+                    CAPTURE(i);
+                    ppuBus.write(c.ppuBase + i, static_cast<uint8>(i ^ 0xA5));
+
+                    CHECK_EQ(ciram.read(c.ciramBase + i), static_cast<uint8>(i ^ 0xA5));
+                }
+            }
+        }
+    }
+
+    SUBCASE("write horizontal mirroring: nametable address maps to expected CIRAM page") {
+        MirroringTestCartridge cartridge(MirroringTestCartridge::kHorizontal);
+        CiRam                  ciram;
+        PpuBus                 ppuBus(ciram);
+        ppuBus.attachCartridge(cartridge);
+
+        constexpr Case cases[] = {
+            { 0x2000, 0x000, "$2000 -> CIRAM $000" },
+            { 0x2400, 0x000, "$2400 -> CIRAM $000 (mirrors $2000)" },
+            { 0x2800, 0x400, "$2800 -> CIRAM $400" },
+            { 0x2C00, 0x400, "$2C00 -> CIRAM $400 (mirrors $2800)" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                for (uint16 i = 0; i < 0x400; ++i) {
+                    CAPTURE(i);
+                    ppuBus.write(c.ppuBase + i, static_cast<uint8>(i ^ 0xA5));
+
+                    CHECK_EQ(ciram.read(c.ciramBase + i), static_cast<uint8>(i ^ 0xA5));
+                }
+            }
+        }
+    }
+
+    SUBCASE("read vertical mirroring: CIRAM page maps to expected nametable address") {
+        MirroringTestCartridge cartridge(MirroringTestCartridge::kVertical);
+        CiRam                  ciram;
+        PpuBus                 ppuBus(ciram);
+        ppuBus.attachCartridge(cartridge);
+
+        constexpr Case cases[] = {
+            { 0x2000, 0x000, "CIRAM $000 -> $2000" },
+            { 0x2400, 0x400, "CIRAM $400 -> $2400" },
+            { 0x2800, 0x000, "CIRAM $000 -> $2800 (mirrors $2000)" },
+            { 0x2C00, 0x400, "CIRAM $400 -> $2C00 (mirrors $2400)" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                for (uint16 i = 0; i < 0x400; ++i) {
+                    CAPTURE(i);
+                    ciram.write(c.ciramBase + i, static_cast<uint8>(i ^ 0xA5));
+
+                    CHECK_EQ(ppuBus.read(c.ppuBase + i), static_cast<uint8>(i ^ 0xA5));
+                }
+            }
+        }
+    }
+
+    SUBCASE("read horizontal mirroring: CIRAM page maps to expected nametable address") {
+        MirroringTestCartridge cartridge(MirroringTestCartridge::kHorizontal);
+        CiRam                  ciram;
+        PpuBus                 ppuBus(ciram);
+        ppuBus.attachCartridge(cartridge);
+
+        constexpr Case cases[] = {
+            { 0x2000, 0x000, "CIRAM $000 -> $2000" },
+            { 0x2400, 0x000, "CIRAM $000 -> $2400 (mirrors $2000)" },
+            { 0x2800, 0x400, "CIRAM $400 -> $2800" },
+            { 0x2C00, 0x400, "CIRAM $400 -> $2C00 (mirrors $2800)" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                for (uint16 i = 0; i < 0x400; ++i) {
+                    CAPTURE(i);
+                    ciram.write(c.ciramBase + i, static_cast<uint8>(i ^ 0xA5));
+
+                    CHECK_EQ(ppuBus.read(c.ppuBase + i), static_cast<uint8>(i ^ 0xA5));
+                }
+            }
+        }
+    }
+
+    SUBCASE("vertical mirroring: $2000 and $2800 alias; $2000 and $2400 do not") {
+        MirroringTestCartridge cartridge(MirroringTestCartridge::kVertical);
+        CiRam                  ciram;
+        PpuBus                 ppuBus(ciram);
+        ppuBus.attachCartridge(cartridge);
+
+        ppuBus.write(0x2000, 0xAA);
+        ppuBus.write(0x2800, 0x55);
+        CHECK_EQ(ppuBus.read(0x2000), 0x55); // second write overwrote first
+
+        ppuBus.write(0x2000, 0x11);
+        ppuBus.write(0x2400, 0x22);
+        CHECK_EQ(ppuBus.read(0x2000), 0x11); // top vs bottom are independent
+        CHECK_EQ(ppuBus.read(0x2400), 0x22);
+    }
+
+    SUBCASE("horizontal mirroring: $2000 and $2400 alias; $2000 and $2800 do not") {
+        MirroringTestCartridge cartridge(MirroringTestCartridge::kHorizontal);
+        CiRam                  ciram;
+        PpuBus                 ppuBus(ciram);
+        ppuBus.attachCartridge(cartridge);
+
+        ppuBus.write(0x2000, 0xAA);
+        ppuBus.write(0x2400, 0x55);
+        CHECK_EQ(ppuBus.read(0x2000), 0x55); // second write overwrote first
+
+        ppuBus.write(0x2000, 0x11);
+        ppuBus.write(0x2800, 0x22);
+        CHECK_EQ(ppuBus.read(0x2000), 0x11); // top vs bottom are independent
+        CHECK_EQ(ppuBus.read(0x2800), 0x22);
     }
 }
 }

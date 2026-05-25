@@ -2,6 +2,8 @@
 
 #include "NESEmuCore/system.hpp"
 
+#include "NESEmuCore/cartridge.hpp"
+
 using namespace NESEmu;
 
 TEST_SUITE("System Tests") {

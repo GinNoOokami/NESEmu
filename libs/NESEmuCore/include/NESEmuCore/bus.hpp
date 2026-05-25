@@ -1,8 +1,8 @@
 #ifndef NESEMU_BUS_HPP
 #define NESEMU_BUS_HPP
 
-#include "NESEmuCore/cartridge.hpp"
 #include "NESEmuCore/emu_types.hpp"
+#include "NESEmuCore/memory.hpp"
 
 /*
 # References
@@ -89,13 +89,68 @@ private:
     Handler m_regions[kAddressRegionCount];
 };
 
+template <typename T>
+concept PpuBusDevice = requires(T& device, uint16 addr, uint8 data)
+{
+    { device.onPpuRead(addr) } -> std::same_as<uint8>;
+    { device.onPpuWrite(addr, data) };
+    { device.isCiRamEnabled() } -> std::same_as<bool>;
+    { device.isHorizontalMirrored() } -> std::same_as<bool>;
+};
+
 class PpuBus {
-    void write(uint16 address, uint8 data) const
+public:
+    explicit PpuBus(CiRam& ciram) : m_ciram(ciram) {}
+
+    template <PpuBusDevice T>
+    void attachCartridge(T& device)
     {
-        /* Placeholder */
+        m_cartridge = makeHandler(device);
+
+        // TODO: Caching these is fine for NROM mapper, but will need to be dynamic for others
+        m_isCiRamEnabled       = m_cartridge.isCiRamEnabled(m_cartridge.ctx);
+        m_isHorizontalMirrored = m_cartridge.isHorizontalMirrored(m_cartridge.ctx);
     }
 
-    [[nodiscard]] uint8 read(uint16 address) { return 0; }
+    void                write(uint16 address, uint8 data) const;
+    [[nodiscard]] uint8 read(uint16 address) const;
+
+private:
+    struct CartridgeInterface {
+
+        uint8 (*read)(void*, uint16)         = &CartridgeInterface::readUnmapped;
+        void (* write)(void*, uint16, uint8) = &CartridgeInterface::writeUnmapped;
+
+        // These are queried when attaching, but mappers that dynamically alter mirroring will need to update the bus values
+        bool (*isCiRamEnabled)(void*)       = &CartridgeInterface::defaultCiRamEnabled;
+        bool (*isHorizontalMirrored)(void*) = &CartridgeInterface::defaultMirroring;
+        void*  ctx                          = nullptr;
+
+        static uint8 readUnmapped(void*, uint16) { return 0; }
+        static void  writeUnmapped(void*, uint16, uint8) {}
+        static bool  defaultCiRamEnabled(void*) { return true; }
+        static bool  defaultMirroring(void*) { return false; }
+    };
+
+    template <PpuBusDevice T>
+    static constexpr CartridgeInterface makeHandler(T& device)
+    {
+        return {
+            +[](void* ctx, uint16 addr) { return static_cast<T*>(ctx)->onPpuRead(addr); },
+            +[](void* ctx, uint16 addr, uint8 data) { static_cast<T*>(ctx)->onPpuWrite(addr, data); },
+            +[](void* ctx) { return static_cast<T*>(ctx)->isCiRamEnabled(); },
+            +[](void* ctx) { return static_cast<T*>(ctx)->isHorizontalMirrored(); },
+            &device
+        };
+    }
+
+    [[nodiscard]] inline uint16 toLogicalCiRamAddress(uint16 address) const;
+
+    CartridgeInterface m_cartridge{};
+    CiRam&             m_ciram;
+
+    bool m_isCiRamEnabled{ true };
+    bool m_isHorizontalMirrored{};
 };
 }
 

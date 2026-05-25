@@ -2,12 +2,13 @@
 
 #include "NESEmuGUI/nesemu_sdl_app.hpp"
 
+#include "NESEmuCore/cartridge.hpp"
 #include "NESEmuCore/palette.hpp"
 #include "NESEmuCore/system.hpp"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
-
+#include <filesystem>
 #include <stdexcept>
 
 NESEmu::NESEmuSdlApp::NESEmuSdlApp()

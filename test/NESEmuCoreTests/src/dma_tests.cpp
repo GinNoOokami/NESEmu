@@ -19,8 +19,9 @@ TEST_CASE("OAM DMA")
 
         Clock          clock;
         WorkRam        memory;
+        CiRam          ciram;
         MainBus        mainBus;
-        PpuBus         ppuBus;
+        PpuBus         ppuBus(ciram);
         InterruptLines interruptLines;
         Rp2A03         cpu(clock, mainBus, interruptLines);
         Ppu            ppu(ppuBus, interruptLines);
@@ -34,7 +35,7 @@ TEST_CASE("OAM DMA")
             mainBus.write(0x200 + i, i);
         }
 
-        size_t cycles = clock.cpuCycles();
+        auto cycles = clock.cpuCycles();
 
         // Initiate the DMA transfer at $0200
         mainBus.write(kOamDmaRegister, 0x02);

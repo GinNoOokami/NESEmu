@@ -1,8 +1,10 @@
 #include "NESEmuCore/system.hpp"
+#include "NESEmuCore/cartridge.hpp"
 
 NESEmu::System::System()
     : m_cpu(m_clock, m_mainBus, m_interruptLines),
-      m_ppu(m_ppuBus, m_interruptLines) {}
+      m_ppu(m_ppuBus, m_interruptLines),
+      m_ppuBus(m_ciRam) {}
 
 void NESEmu::System::startup(const Cartridge& cartridge)
 {
@@ -16,6 +18,8 @@ void NESEmu::System::startup(const Cartridge& cartridge)
     m_mainBus.attachRegion(AddressRegion::Cartridge2, *m_mapper);
     m_mainBus.attachRegion(AddressRegion::Cartridge3, *m_mapper);
     m_mainBus.attachRegion(AddressRegion::Cartridge4, *m_mapper);
+
+    m_ppuBus.attachCartridge(*m_mapper);
 
     m_cpu.startup();
     m_ppu.startup();
@@ -45,6 +49,6 @@ void NESEmu::System::runFrame()
 void NESEmu::System::shutdown()
 {
     reset();
-    
+
     mCartridgeLoaded = false;
 }
