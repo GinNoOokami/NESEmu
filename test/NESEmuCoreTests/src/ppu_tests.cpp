@@ -44,12 +44,12 @@ TEST_CASE("PPUCTRL")
             SUBCASE("across") {
                 ppu.onCpuWrite(ppuCtrl, 0xFB);
 
-                CHECK_FALSE(ppu.ppuCtrl().ramAddressIncrement());
+                CHECK_FALSE(ppu.ppuCtrl().addressIncrementMode());
             }
             SUBCASE("down") {
                 ppu.onCpuWrite(ppuCtrl, 0xF4);
 
-                CHECK(ppu.ppuCtrl().ramAddressIncrement());
+                CHECK(ppu.ppuCtrl().addressIncrementMode());
             }
         }
 
@@ -349,6 +349,210 @@ TEST_CASE("OAMADDR/OAMDATA")
         ppu.onCpuWrite(oamAddr, 0x20);
 
         CHECK((ppu.onCpuRead(oamData) == 0x5A));
+    }
+}
+
+TEST_CASE("PPUADDR/PPUDATA")
+{
+    constexpr uint16 ppuCtrl   = 0x2000;
+    constexpr uint16 ppuStatus = 0x2002;
+    constexpr uint16 ppuAddr   = 0x2006;
+    constexpr uint16 ppuData   = 0x2007;
+
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines{};
+    Ppu            ppu(ppuBus, interruptLines);
+    ppu.startup();
+
+    SUBCASE("power-on state: v, t, x, w are zero") {
+        auto [v, t, x, w] = ppu.internalRegisters();
+
+        CHECK_EQ(v, 0);
+        CHECK_EQ(t, 0);
+        CHECK_EQ(x, 0);
+        CHECK_EQ(w, 0);
+    }
+
+    SUBCASE("PPUSTATUS read clears w and leaves t, v, x unchanged") {
+        // Ensure w bit is set at start
+        ppu.onCpuWrite(ppuAddr, 0x00);
+        CHECK(ppu.internalRegisters().w);
+        auto prevState = ppu.internalRegisters();
+
+        (void)ppu.onCpuRead(ppuStatus);
+
+        auto [v, t, x, w] = ppu.internalRegisters();
+        CHECK_FALSE(w);
+        CHECK_EQ(t, prevState.t);
+        CHECK_EQ(v, prevState.v);
+        CHECK_EQ(x, prevState.x);
+    }
+
+    SUBCASE("PPUCTRL write copies nametable select into t bits 10-11 without affecting v, w, or x") {
+        auto prevState = ppu.internalRegisters();
+
+        ppu.onCpuWrite(ppuCtrl, 0x03);
+
+        auto [v, t, x, w] = ppu.internalRegisters();
+        CHECK_EQ(w, prevState.w);
+        CHECK_EQ(v, prevState.v);
+        CHECK_EQ(x, prevState.x);
+        CHECK_EQ(t.lsb(), prevState.t.lsb());
+        CHECK_EQ(t.msb() & 0x0C, 0x0C);
+        CHECK_EQ(t.msb() & 0xF3, prevState.t.msb() & 0xF3);
+    }
+
+    SUBCASE("PPUADDR first write sets t high byte, clears t bit 14, discards upper 2 bits, sets w, leaves v and x unchanged") {
+        auto prevState = ppu.internalRegisters();
+        ppu.onCpuWrite(ppuAddr, 0xFF);
+
+        auto [v, t, x, w] = ppu.internalRegisters();
+        CHECK(w);
+        CHECK_EQ(v, prevState.v);
+        CHECK_EQ(x, prevState.x);
+        CHECK_EQ(t.msb(), 0x3F);
+        CHECK_EQ(t.lsb(), prevState.t.lsb());
+    }
+
+    SUBCASE("PPUADDR second write sets t low byte, copies t into v, clears w") {
+        auto prevState = ppu.internalRegisters();
+        ppu.onCpuWrite(ppuAddr, 0xFF);
+        ppu.onCpuWrite(ppuAddr, 0x12);
+
+        auto [v, t, x, w] = ppu.internalRegisters();
+        CHECK_FALSE(w);
+        CHECK_EQ(v, t);
+        CHECK_EQ(x, prevState.x);
+        CHECK_EQ(t.lsb(), 0x12);
+    }
+
+    SUBCASE("PPUADDR write sequence interrupted by PPUSTATUS read resets w mid-sequence") {
+        auto prevState = ppu.internalRegisters();
+        ppu.onCpuWrite(ppuAddr, 0xFF);
+        (void)ppu.onCpuRead(ppuStatus);
+        ppu.onCpuWrite(ppuAddr, 0x20);
+
+        auto [v, t, x, w] = ppu.internalRegisters();
+        CHECK(w);
+        CHECK_EQ(t.msb(), 0x20);
+        CHECK_EQ(t.lsb(), prevState.t.lsb());
+        CHECK_EQ(v, prevState.v);
+    }
+
+    SUBCASE("PPUDATA write stores byte at v and increments v") {
+        SUBCASE("by 1 when PPUCTRL increment mode is across") {
+            ppu.onCpuWrite(ppuAddr, 0x20);
+            ppu.onCpuWrite(ppuAddr, 0x00);
+            ppu.onCpuWrite(ppuCtrl, 0x00);
+
+            ppu.onCpuWrite(ppuData, 0x55);
+
+            auto v = ppu.internalRegisters().v;
+            CHECK_EQ(v, 0x2001);
+            CHECK_EQ(ppuBus.read(0x2000), 0x55);
+        }
+
+        SUBCASE("by 32 when PPUCTRL increment mode is down") {
+            ppu.onCpuWrite(ppuAddr, 0x20);
+            ppu.onCpuWrite(ppuAddr, 0x00);
+            ppu.onCpuWrite(ppuCtrl, 0x04);
+
+            ppu.onCpuWrite(ppuData, 0x55);
+
+            auto v = ppu.internalRegisters().v;
+            CHECK_EQ(v, 0x2020);
+            CHECK_EQ(ppuBus.read(0x2000), 0x55);
+        }
+    }
+
+    SUBCASE("PPUDATA read returns buffered value, refills buffer from v & 0x3FFF, and increments v") {
+        SUBCASE("by 1 when PPUCTRL increment mode is across") {
+            ppu.onCpuWrite(ppuAddr, 0x20);
+            ppu.onCpuWrite(ppuAddr, 0x00);
+            ppu.onCpuWrite(ppuCtrl, 0x00);
+
+            // First read primes the read buffer, second read returns the actual data
+            ppuBus.write(0x2000, 0x55);
+            (void)ppu.onCpuRead(ppuData);
+            auto data = ppu.onCpuRead(ppuData);
+
+            auto v = ppu.internalRegisters().v;
+            CHECK_EQ(v.busAddress(), 0x2002);
+            CHECK_EQ(data, 0x55);
+        }
+        SUBCASE("by 32 when PPUCTRL increment mode is down") {
+            ppu.onCpuWrite(ppuAddr, 0x20);
+            ppu.onCpuWrite(ppuAddr, 0x00);
+            ppu.onCpuWrite(ppuCtrl, 0x04);
+
+            ppuBus.write(0x2000, 0x55);
+
+            // First read primes the read buffer, second read returns the actual data
+            (void)ppu.onCpuRead(ppuData);
+            auto data = ppu.onCpuRead(ppuData);
+
+            auto v = ppu.internalRegisters().v;
+            CHECK_EQ(v.busAddress(), 0x2040);
+            CHECK_EQ(data, 0x55);
+        }
+    }
+
+    SUBCASE("PPUDATA palette read returns data immediately and refills buffer from nametable mirror") {
+        ppu.onCpuWrite(ppuAddr, 0x3F);
+        ppu.onCpuWrite(ppuAddr, 0x00);
+        ppu.onCpuWrite(ppuCtrl, 0x00);
+        ppu.onCpuWrite(ppuData, 0x55);
+        ppu.onCpuWrite(ppuAddr, 0x3F);
+        ppu.onCpuWrite(ppuAddr, 0x00);
+        ppuBus.write(0x2F00, 0xA5);
+
+        auto data = ppu.onCpuRead(ppuData);
+
+        auto v = ppu.internalRegisters().v;
+        CHECK_EQ(v.busAddress(), 0x3F01);
+        CHECK_EQ(data, 0x55);
+
+        // Reading any valid non-palette address in the PPU memory range should return the value in the read buffer
+        ppu.onCpuWrite(ppuAddr, 0x20);
+        ppu.onCpuWrite(ppuAddr, 0x00);
+        auto mirroredNametableValue = ppu.onCpuRead(ppuData);
+
+        CHECK_EQ(mirroredNametableValue, 0xA5);
+    }
+
+    SUBCASE("PPUDATA palette read returns mirrored value above $3F1F") {
+        ppu.onCpuWrite(ppuAddr, 0x3F);
+        ppu.onCpuWrite(ppuAddr, 0x00);
+        ppu.onCpuWrite(ppuCtrl, 0x00);
+        ppu.onCpuWrite(ppuData, 0x55);
+        ppu.onCpuWrite(ppuData, 0xA5);
+        ppu.onCpuWrite(ppuAddr, 0x3F);
+        ppu.onCpuWrite(ppuAddr, 0x20);
+
+        (void)ppu.onCpuRead(ppuData);
+        auto data = ppu.onCpuRead(ppuData);
+
+        CHECK_EQ(data, 0xA5);
+    }
+
+    SUBCASE("PPUDATA increment stride changes when PPUCTRL is rewritten between accesses") {
+        ppu.onCpuWrite(ppuAddr, 0x20);
+        ppu.onCpuWrite(ppuAddr, 0x00);
+        ppu.onCpuWrite(ppuCtrl, 0x00);
+
+        ppu.onCpuWrite(ppuData, 0x55);
+
+        // Check that the first write is committed and the address increments by 1
+        CHECK_EQ(ppuBus.read(0x2000), 0x55);
+        CHECK_EQ(ppu.internalRegisters().v.busAddress(), 0x2001);
+
+        ppu.onCpuWrite(ppuCtrl, 0x04);
+        ppu.onCpuWrite(ppuData, 0xA5);
+
+        // Check that the second write is committed and the address increments by 32
+        CHECK_EQ(ppuBus.read(0x2001), 0xA5);
+        CHECK_EQ(ppu.internalRegisters().v.busAddress(), 0x2021);
     }
 }
 

@@ -1,5 +1,6 @@
 #include "NESEmuCore/ppu.hpp"
 
+#include "NESEmuCore/bus.hpp"
 #include "NESEmuCore/interrupt_lines.hpp"
 
 #include <algorithm>
@@ -39,7 +40,7 @@ uint8 Ppu::onCpuRead(const uint16 address)
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
         case PpuRegisters::kPpuCtrl:
         case PpuRegisters::kPpuMask:
-            return m_dataLatch;
+            return m_busDataLatch;
         case PpuRegisters::kPpuStatus:
             return readStatus();
         case PpuRegisters::kOamAddr:
@@ -48,21 +49,22 @@ uint8 Ppu::onCpuRead(const uint16 address)
             return m_oam.raw[m_oamAddr];
         case PpuRegisters::kPpuScroll:
         case PpuRegisters::kPpuAddr:
+            return m_busDataLatch;
         case PpuRegisters::kPpuData:
-            break;
+            return readDataByte();
         default:
             assert(false && "Invalid PPU read address");
     }
-    return m_dataLatch;
+    return m_busDataLatch;
 }
 
 void Ppu::onCpuWrite(const uint16 address, const uint8 data)
 {
-    m_dataLatch = data;
+    m_busDataLatch = data;
 
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
         case PpuRegisters::kPpuCtrl:
-            m_ppuCtrl.value = data;
+            setCtrlValue(data);
             break;
         case PpuRegisters::kPpuMask:
             m_ppuMask.value = data;
@@ -76,8 +78,12 @@ void Ppu::onCpuWrite(const uint16 address, const uint8 data)
             m_oam.raw[m_oamAddr++] = data;
             break;
         case PpuRegisters::kPpuScroll:
+            break;
         case PpuRegisters::kPpuAddr:
+            writeAddressByte(data);
+            break;
         case PpuRegisters::kPpuData:
+            writeDataByte(data);
             break;
         default:
             assert(false && "Invalid PPU write address");
@@ -86,9 +92,55 @@ void Ppu::onCpuWrite(const uint16 address, const uint8 data)
 
 uint8 Ppu::readStatus()
 {
-    uint8 status = m_ppuStatus.status() | (m_dataLatch & 0x1F);
+    uint8 status = m_ppuStatus.status() | (m_busDataLatch & 0x1F);
     m_ppuStatus.vBlank(false);
+    m_registers.w = 0;
     return status;
+}
+
+void Ppu::setCtrlValue(uint8 data)
+{
+    m_ppuCtrl.value = data;
+    m_registers.t.nametableIndex(m_ppuCtrl.baseNametableAddress());
+}
+
+void Ppu::writeAddressByte(const uint8 data)
+{
+    if (m_registers.w) {
+        m_registers.t.lsb(data);
+        m_registers.v = m_registers.t;
+    } else {
+        m_registers.t.msb(data);
+    }
+    m_registers.w = !m_registers.w;
+}
+
+void Ppu::writeDataByte(const uint8 data)
+{
+    if ((m_registers.v.busAddress() & 0x3F00) == 0x3F00) {
+        const uint8 index    = m_registers.v.busAddress() & 0x001F;
+        m_paletteData[index] = data;
+    } else {
+        m_ppuBus.write(m_registers.v.busAddress(), data);
+    }
+    m_registers.v.increment(kStrideIncrements[m_ppuCtrl.addressIncrementMode()]);
+}
+
+uint8 Ppu::readDataByte()
+{
+    uint8 value;
+
+    if ((m_registers.v.busAddress() & 0x3F00) == 0x3F00) {
+        const uint8 index = m_registers.v.busAddress() & 0x001F;
+        value             = m_paletteData[index];
+    } else {
+        value = m_dataBuffer;
+    }
+
+    m_dataBuffer = m_ppuBus.read(m_registers.v.busAddress());
+    m_registers.v.increment(kStrideIncrements[m_ppuCtrl.addressIncrementMode()]);
+
+    return value;
 }
 
 void Ppu::advanceScanline()

@@ -57,7 +57,7 @@ class Ppu {
         [[nodiscard]] uint8 baseNametableAddress() const { return value & 0b0000'0011; }
 
         // (0: add 1, going across; 1: add 32, going down)
-        [[nodiscard]] bool ramAddressIncrement() const { return value & 0b0000'0100; }
+        [[nodiscard]] bool addressIncrementMode() const { return value & 0b0000'0100; }
 
         // (0: $0000; 1: $1000; ignored in 8x16 mode)
         [[nodiscard]] bool spritePatternTableAddress() const { return value & 0b0000'1000; }
@@ -109,11 +109,54 @@ class Ppu {
         [[nodiscard]] uint8 status() const { return value & 0b1110'0000; }
 
         // (0: Off, 1: On)
-        [[nodiscard]] uint8 vBlank() const { return value & 0b1000'0000; }
-        void                vBlank(const bool enable) { value = (value & ~0b1000'0000) | (enable << 7); }
+        [[nodiscard]] bool vBlank() const { return value & 0b1000'0000; }
+        void               vBlank(const bool enable) { value = (value & ~0b1000'0000) | (enable << 7); }
 
     private:
         uint8 value{};
+    };
+
+    struct PpuAddress {
+        [[nodiscard]] uint8 coarseX() const { return value & 0b0000'0000'0001'1111; }
+        [[nodiscard]] uint8 coarseY() const { return (value & 0b0000'0011'1110'0000) >> 5; }
+
+        [[nodiscard]] uint8 nametableIndex() const { return (value & 0b0000'1100'0000'0000) >> 10; }
+        void                nametableIndex(const uint8 data) { value = (value & 0b1111'0011'1111'1111) | (data << 10); }
+
+        [[nodiscard]] uint8 fineY() const { return (value & 0b0011'0000'0000'0000) >> 12; }
+
+        [[nodiscard]] uint8 msb() const { return value >> 8; }
+        void                msb(const uint8 byte) { value = (value & 0x00FF) | (byte & 0x3F) << 8; }
+
+        [[nodiscard]] uint8 lsb() const { return value & 0xFF; }
+        void                lsb(const uint8 byte) { value = (value & 0xFF00) | byte; }
+
+        void increment(const uint8 stride) { value = (value + stride) & 0x7FFF; }
+
+        [[nodiscard]] uint16 busAddress() const { return value & 0x3FFF; }
+
+        friend bool operator==(const PpuAddress& lhs, const PpuAddress& rhs)
+        {
+            return lhs.value == rhs.value;
+        }
+
+        friend bool operator!=(const PpuAddress& lhs, const PpuAddress& rhs)
+        {
+            return !(lhs == rhs);
+        }
+
+        friend bool operator==(const PpuAddress& lhs, const uint16 rhs)
+        {
+            return lhs.value == rhs;
+        }
+
+        friend bool operator!=(const PpuAddress& lhs, const uint16 rhs)
+        {
+            return !(lhs == rhs);
+        }
+
+    private:
+        uint16 value{};
     };
 
     union Oam {
@@ -126,6 +169,13 @@ class Ppu {
 
         std::array<uint8, 256>  raw;
         std::array<OamData, 64> data;
+    };
+
+    struct InternalRegisters {
+        PpuAddress v{};
+        PpuAddress t{};
+        uint8      x : 3{};
+        uint8      w : 1{};
     };
 
 public:
@@ -146,16 +196,24 @@ public:
 
     [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_visibleFrameBuffer; }
 
+    [[nodiscard]] const InternalRegisters& internalRegisters() const { return m_registers; }
+
     [[nodiscard]] uint8 onCpuRead(uint16 address);
     void                onCpuWrite(uint16 address, uint8 data);
 
 private:
     inline uint8 readStatus();
+    inline void  setCtrlValue(uint8 data);
+    inline void  writeAddressByte(uint8 data);
+    inline void  writeDataByte(uint8 data);
+    inline uint8 readDataByte();
     inline void  advanceScanline();
     void         updateVisibleFrameBuffer();
 
 private:
     using InternalFrameBuffer = std::array<std::array<PaletteIndex, kFrameScanlineWidth>, kFrameScanlineMax>;
+
+    static constexpr std::array<uint8, 2> kStrideIncrements = { 1, 32 };
 
     PpuBus&         m_ppuBus;
     InterruptLines& m_interruptLines;
@@ -167,7 +225,11 @@ private:
     uint8     m_oamAddr{};
     Oam       m_oam{};
 
-    uint8  m_dataLatch{};
+    InternalRegisters     m_registers{};
+    std::array<uint8, 32> m_paletteData{};
+
+    uint8  m_dataBuffer{};
+    uint8  m_busDataLatch{};
     uint16 m_dotCycle{};
     uint16 m_scanline{};
     uint64 m_cycles{};
