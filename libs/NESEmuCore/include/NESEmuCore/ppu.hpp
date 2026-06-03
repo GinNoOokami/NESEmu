@@ -117,11 +117,12 @@ class Ppu {
     };
 
     struct PpuAddress {
-        [[nodiscard]] uint8 coarseX() const { return value & 0b0000'0000'0001'1111; }
-        [[nodiscard]] uint8 coarseY() const { return (value & 0b0000'0011'1110'0000) >> 5; }
+        [[nodiscard]] uint8 coarseX() const { return value & kCoarseXBitsMask; }
+        [[nodiscard]] uint8 coarseY() const { return (value & kCoarseYBitsMask) >> 5; }
+        void                coarseY(uint8 y) { value = (value & ~kCoarseYBitsMask) | (y << 5); }
 
-        [[nodiscard]] uint8 nametableIndex() const { return (value & 0b0000'1100'0000'0000) >> 10; }
-        void                nametableIndex(const uint8 data) { value = (value & 0b1111'0011'1111'1111) | (data << 10); }
+        [[nodiscard]] uint8 nametableIndex() const { return (value & kNametableBitsMask) >> 10; }
+        void                nametableIndex(const uint8 data) { value = (value & ~kNametableBitsMask) | (data << 10); }
 
         [[nodiscard]] uint8 fineY() const { return (value & 0b0011'0000'0000'0000) >> 12; }
 
@@ -133,7 +134,33 @@ class Ppu {
 
         void increment(const uint8 stride) { value = (value + stride) & 0x7FFF; }
 
+        void incFineY()
+        {
+            if ((value & 0x7000) != 0x7000)
+                value += 0x1000;
+            else {
+                value   &= ~0x7000;
+                uint8 y = coarseY();
+                if (y == 29) { (y = 0, value ^= 0x0800); } else { y += 1; }
+                coarseY(y);
+            }
+        }
+
+        void incCoarseX() { coarseX() == 31 ? (value ^= 0x400, value &= ~0x1F) : value += 1; }
+
+        [[nodiscard]] uint16 horizontalBits() const { return value & kHorizontalBitsMask; }
+        void                 horizontalBits(const PpuAddress& o) { value = value & ~kHorizontalBitsMask | o.horizontalBits(); }
+
+        [[nodiscard]] uint16 verticalBits() const { return value & kVerticalBitsMask; }
+        void                 verticalBits(const PpuAddress& o) { value = value & ~kVerticalBitsMask | o.verticalBits(); }
+
         [[nodiscard]] uint16 busAddress() const { return value & 0x3FFF; }
+        [[nodiscard]] uint16 nametableAddress() const { return 0x2000 | (value & 0x0FFF); }
+
+        [[nodiscard]] uint16 attributeTableAddress() const
+        {
+            return 0; /* TODO */
+        }
 
         friend bool operator==(const PpuAddress& lhs, const PpuAddress& rhs)
         {
@@ -156,6 +183,12 @@ class Ppu {
         }
 
     private:
+        constexpr static uint16 kCoarseXBitsMask    = 0b0000'0000'0001'1111; // 0x001F
+        constexpr static uint16 kCoarseYBitsMask    = 0b0000'0011'1110'0000;
+        constexpr static uint16 kHorizontalBitsMask = 0b0000'0100'0001'1111;
+        constexpr static uint16 kVerticalBitsMask   = 0b0111'1011'1110'0000;
+        constexpr static uint16 kNametableBitsMask  = 0b0000'1100'0000'0000;
+
         uint16 value{};
     };
 
@@ -207,6 +240,7 @@ private:
     inline void  writeAddressByte(uint8 data);
     inline void  writeDataByte(uint8 data);
     inline uint8 readDataByte();
+    inline void  updateScanline();
     inline void  advanceScanline();
     void         updateVisibleFrameBuffer();
 
@@ -215,7 +249,7 @@ private:
 
     static constexpr std::array<uint8, 2> kStrideIncrements = { 1, 32 };
 
-    PpuBus&         m_ppuBus;
+    PpuBus&         m_bus;
     InterruptLines& m_interruptLines;
 
     // MMIO registers
@@ -233,6 +267,11 @@ private:
     uint16 m_dotCycle{};
     uint16 m_scanline{};
     uint64 m_cycles{};
+
+    uint8 m_nameTableByte{};
+    uint8 m_patternTableHiByte{};
+    uint8 m_patternTableLoByte{};
+    uint8 m_attributeTableByte{};
 
     InternalFrameBuffer m_internalFrameBuffer{};
     FrameBuffer         m_visibleFrameBuffer{};

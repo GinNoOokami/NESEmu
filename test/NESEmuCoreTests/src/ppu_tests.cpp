@@ -6,6 +6,9 @@
 
 using namespace NESEmu;
 
+constexpr uint16 kPpuCtrl = 0x2000;
+constexpr uint16 kPpuMask = 0x2001;
+
 TEST_SUITE("PPU Tests") {
 TEST_CASE("PPUCTRL")
 {
@@ -554,6 +557,148 @@ TEST_CASE("PPUADDR/PPUDATA")
         CHECK_EQ(ppuBus.read(0x2001), 0xA5);
         CHECK_EQ(ppu.internalRegisters().v.busAddress(), 0x2021);
     }
+}
+
+TEST_CASE("Render timing")
+{
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines{};
+    Ppu            ppu(ppuBus, interruptLines);
+    ppu.startup();
+
+    // Enable background rendering by default
+    ppu.onCpuWrite(kPpuMask, 0x08);
+
+    SUBCASE("when drawing across") {
+        SUBCASE("increments v coarseX bits every 8th dot from 1-248") {
+            uint64 cycles = 1;
+            ppu.executeUntil(cycles);
+
+            for (int i = 0; i < 31; ++i) {
+                CAPTURE(i);
+
+                cycles += 7;
+                ppu.executeUntil(cycles);
+
+                CHECK_EQ(ppu.internalRegisters().v.coarseX(), i);
+
+                ppu.executeUntil(++cycles);
+
+                CHECK_EQ(ppu.internalRegisters().v.coarseX(), i + 1);
+            }
+        }
+        SUBCASE("wraps around at 31 to 0 at dot 256") {
+            ppu.executeUntil(256);
+            CHECK_EQ(ppu.internalRegisters().v.coarseX(), 31);
+
+            ppu.executeUntil(257);
+            CHECK_EQ(ppu.internalRegisters().v.coarseX(), 0);
+        }
+        SUBCASE("toggles horizontal nametable bit when wrapping value") {
+            ppu.executeUntil(256);
+            CHECK_EQ(ppu.internalRegisters().v.nametableIndex(), 0);
+
+            ppu.executeUntil(257);
+            CHECK_EQ(ppu.internalRegisters().v.nametableIndex(), 1);
+        }
+        SUBCASE("copies horizontal bits from t to v at dot 257") {
+            ppu.executeUntil(257);
+            CHECK_NE(ppu.internalRegisters().v.horizontalBits(), ppu.internalRegisters().t.horizontalBits());
+
+            ppu.executeUntil(258);
+            CHECK_EQ(ppu.internalRegisters().v.horizontalBits(), ppu.internalRegisters().t.horizontalBits());
+        }
+        SUBCASE("does not modify vertical bits of v at dot 257") {
+            ppu.executeUntil(257);
+            const auto v = ppu.internalRegisters().v;
+
+            ppu.executeUntil(258);
+            CHECK_EQ(ppu.internalRegisters().v.verticalBits(), v.verticalBits());
+        }
+        SUBCASE("does not modify x register") {
+            ppu.executeUntil(Ppu::kPpuCyclesPerFrame);
+            CHECK_EQ(ppu.internalRegisters().x, 0);
+        }
+    }
+
+    SUBCASE("when drawing down") {
+        SUBCASE("increments fineY at dot 256 if < 7") {
+            ppu.executeUntil(256);
+            CHECK_EQ(ppu.internalRegisters().v.fineY(), 0);
+
+            ppu.executeUntil(257);
+            CHECK_EQ(ppu.internalRegisters().v.fineY(), 1);
+        }
+        SUBCASE("increments v coarseY bits every 8 scanlines from 0-239 at dot 256") {
+            // First line is a special case: 256 + Ppu::kFrameScanlineWidth * 7
+            uint64 cycles = 2643;
+            ppu.executeUntil(cycles);
+
+            CHECK_EQ(ppu.internalRegisters().v.coarseY(), 0);
+            ppu.executeUntil(++cycles);
+            CHECK_EQ(ppu.internalRegisters().v.coarseY(), 1);
+
+            for (int i = 1; i < 29; ++i) {
+                CAPTURE(i);
+
+                // Advance the scanline to just before the next tile increment
+                cycles += Ppu::kFrameScanlineWidth * 8 - 1;
+                ppu.executeUntil(cycles);
+
+                CHECK_EQ(ppu.internalRegisters().v.coarseY(), i);
+
+                // Ensure the increment happens on dot 256 of every scanline
+                ppu.executeUntil(++cycles);
+                CHECK_EQ(ppu.internalRegisters().v.coarseY(), i + 1);
+            }
+        }
+        SUBCASE("wraps around at 29 to 0") {
+            uint64 cycles = 81755; // The number of cycles just before the rollover: 239 * 341 + 256
+            ppu.executeUntil(cycles);
+
+            CHECK_EQ(ppu.internalRegisters().v.coarseY(), 29);
+
+            ppu.executeUntil(++cycles);
+
+            CHECK_EQ(ppu.internalRegisters().v.coarseY(), 0);
+            CHECK_EQ(ppu.internalRegisters().v.fineY(), 0);
+        }
+        SUBCASE("toggles vertical nametable bit when wrapping value") {
+            uint64 cycles = 81755; // The number of cycles just before the rollover: 239 * 341 + 256
+            ppu.executeUntil(cycles);
+
+            CHECK_EQ(ppu.internalRegisters().v.nametableIndex(), 0);
+
+            ppu.executeUntil(++cycles);
+
+            // The horizontal nametable flip happens on the same cycle, so check just the vertical nametable bit
+            CHECK_EQ(ppu.internalRegisters().v.nametableIndex() & 0x2, 2);
+        }
+    }
+
+    SUBCASE("during pre-render scanline") {
+        SUBCASE("copies vertical bits from t to v during dots 280-304") {
+            uint64 cycles = 89281; // The number of cycles just before the vbit copies: 261 * 341 + 280
+            ppu.executeUntil(cycles);
+            CHECK_NE(ppu.internalRegisters().v.verticalBits(), ppu.internalRegisters().t.verticalBits());
+
+            const auto t = ppu.internalRegisters().t;
+            for (int i = 0; i < 25; ++i) {
+                ppu.executeUntil(++cycles);
+                CHECK_EQ(ppu.internalRegisters().v.verticalBits(), t.verticalBits());
+            }
+        }
+    }
+
+    /*SUBCASE("when rendering disabled") {
+        ppu.onCpuWrite(kPpuCtrl, 0x00);
+
+        SUBCASE("does not increment coarseX during visible scanlines") {}
+        SUBCASE("does not increment Y at dot 256") {}
+        SUBCASE("does not copy t to v at dot 257") {}
+        SUBCASE("does not copy t to v during pre-render scanline") {}
+    }*/
 }
 
 TEST_CASE("NMI interrupt")

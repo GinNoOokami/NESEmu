@@ -9,7 +9,7 @@
 using namespace NESEmu;
 
 Ppu::Ppu(PpuBus& ppuBus, InterruptLines& interruptLines)
-    : m_ppuBus(ppuBus), m_interruptLines(interruptLines) {}
+    : m_bus(ppuBus), m_interruptLines(interruptLines) {}
 
 void Ppu::startup() {}
 
@@ -22,8 +22,9 @@ void Ppu::reset()
 void Ppu::executeUntil(const uint64 targetPpuCycles)
 {
     while (m_cycles < targetPpuCycles) {
-        // TODO: Temp code to get something on screen - select a random palette index based on current scanline
-        m_internalFrameBuffer[m_scanline][m_dotCycle] = m_scanline & 0x3F;
+        if (m_ppuMask.isRenderingEnabled()) {
+            updateScanline();
+        }
 
         m_dotCycle++;
         m_cycles++;
@@ -121,7 +122,7 @@ void Ppu::writeDataByte(const uint8 data)
         const uint8 index    = m_registers.v.busAddress() & 0x001F;
         m_paletteData[index] = data;
     } else {
-        m_ppuBus.write(m_registers.v.busAddress(), data);
+        m_bus.write(m_registers.v.busAddress(), data);
     }
     m_registers.v.increment(kStrideIncrements[m_ppuCtrl.addressIncrementMode()]);
 }
@@ -137,10 +138,50 @@ uint8 Ppu::readDataByte()
         value = m_dataBuffer;
     }
 
-    m_dataBuffer = m_ppuBus.read(m_registers.v.busAddress());
+    m_dataBuffer = m_bus.read(m_registers.v.busAddress());
     m_registers.v.increment(kStrideIncrements[m_ppuCtrl.addressIncrementMode()]);
 
     return value;
+}
+
+void Ppu::updateScanline()
+{
+    if (m_scanline < 240 || m_scanline == kFramePreRenderStart) {
+        if (m_dotCycle > 0 && m_dotCycle < 257) {
+            // This isn't cycle accurate yet; we wait until the end of the tile and draw it all at once
+            if ((m_dotCycle & 7) == 0) {
+                // Fetch nametable, attribute, and pattern byte for this tile:
+                // * Look up the nametable entry from bus based on 0x2000 | (v & 0x0FFF)
+                m_nameTableByte = m_bus.read(m_registers.v.nametableAddress());
+                // * Look up attribute table entry from bus based on 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
+                //m_attributeTableByte = m_bus.read(m_registers.v.attributeTableAddress());
+                // * Look up pattern low byte based on (bit 4 ppuctrl << 12) | nametableByte << 4 | fineY
+                // * Look up pattern high byte (same as above with bit 3 set)
+                // for each pixel in the tile:
+                // * combine the pattern bits to form the palette index
+                // * fetch the current palette table based on the attribute table entry
+                // * look up the final palette index
+                // * insert value into the buffer array at the current scanline dot
+                m_registers.v.incCoarseX();
+            }
+            // TODO: Temp code - remove when render fully implemented
+            // Just output the nametable byte as a direct color palette lookup for now
+            m_internalFrameBuffer[m_scanline][m_dotCycle] = m_nameTableByte & 0x3F;
+
+            if (m_dotCycle == 256) {
+                m_registers.v.incFineY();
+            }
+        }
+
+        if (m_dotCycle == 257) {
+            m_registers.v.horizontalBits(m_registers.t);
+        }
+        if (m_scanline == kFramePreRenderStart) {
+            if (m_dotCycle >= 280 && m_dotCycle <= 304) {
+                m_registers.v.verticalBits(m_registers.t);
+            }
+        }
+    }
 }
 
 void Ppu::advanceScanline()
