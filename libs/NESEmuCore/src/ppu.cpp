@@ -79,6 +79,7 @@ void Ppu::onCpuWrite(const uint16 address, const uint8 data)
             m_oam.raw[m_oamAddr++] = data;
             break;
         case PpuRegisters::kPpuScroll:
+            writeScrollByte(data);
             break;
         case PpuRegisters::kPpuAddr:
             writeAddressByte(data);
@@ -103,6 +104,18 @@ void Ppu::setCtrlValue(uint8 data)
 {
     m_ppuCtrl.value = data;
     m_registers.t.nametableIndex(m_ppuCtrl.baseNametableAddress());
+}
+
+void Ppu::writeScrollByte(const uint8 data)
+{
+    if (m_registers.w) {
+        m_registers.t.coarseY(data >> 3);
+        m_registers.t.fineY(data & 0x7);
+    } else {
+        m_registers.t.coarseX(data >> 3);
+        m_registers.x = data & 0x7;
+    }
+    m_registers.w = !m_registers.w;
 }
 
 void Ppu::writeAddressByte(const uint8 data)

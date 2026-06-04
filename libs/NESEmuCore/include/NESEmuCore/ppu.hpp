@@ -118,13 +118,16 @@ class Ppu {
 
     struct PpuAddress {
         [[nodiscard]] uint8 coarseX() const { return value & kCoarseXBitsMask; }
+        void                coarseX(const uint8 x) { value = (value & ~kCoarseXBitsMask) | x & 0x1F; }
+
         [[nodiscard]] uint8 coarseY() const { return (value & kCoarseYBitsMask) >> 5; }
-        void                coarseY(uint8 y) { value = (value & ~kCoarseYBitsMask) | (y << 5); }
+        void                coarseY(const uint8 y) { value = (value & ~kCoarseYBitsMask) | (y << 5); }
 
         [[nodiscard]] uint8 nametableIndex() const { return (value & kNametableBitsMask) >> 10; }
         void                nametableIndex(const uint8 data) { value = (value & ~kNametableBitsMask) | (data << 10); }
 
-        [[nodiscard]] uint8 fineY() const { return (value & 0b0011'0000'0000'0000) >> 12; }
+        [[nodiscard]] uint8 fineY() const { return (value & kFineYBitsMask) >> 12; }
+        void                fineY(const uint8 y) { value = (value & ~kFineYBitsMask) | (y << 12); }
 
         [[nodiscard]] uint8 msb() const { return value >> 8; }
         void                msb(const uint8 byte) { value = (value & 0x00FF) | (byte & 0x3F) << 8; }
@@ -185,6 +188,7 @@ class Ppu {
     private:
         constexpr static uint16 kCoarseXBitsMask    = 0b0000'0000'0001'1111; // 0x001F
         constexpr static uint16 kCoarseYBitsMask    = 0b0000'0011'1110'0000;
+        constexpr static uint16 kFineYBitsMask      = 0b0111'0000'0000'0000;
         constexpr static uint16 kHorizontalBitsMask = 0b0000'0100'0001'1111;
         constexpr static uint16 kVerticalBitsMask   = 0b0111'1011'1110'0000;
         constexpr static uint16 kNametableBitsMask  = 0b0000'1100'0000'0000;
@@ -237,6 +241,7 @@ public:
 private:
     inline uint8 readStatus();
     inline void  setCtrlValue(uint8 data);
+    inline void  writeScrollByte(uint8 data);
     inline void  writeAddressByte(uint8 data);
     inline void  writeDataByte(uint8 data);
     inline uint8 readDataByte();

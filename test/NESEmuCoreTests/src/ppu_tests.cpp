@@ -6,8 +6,9 @@
 
 using namespace NESEmu;
 
-constexpr uint16 kPpuCtrl = 0x2000;
-constexpr uint16 kPpuMask = 0x2001;
+constexpr uint16 kPpuCtrl   = 0x2000;
+constexpr uint16 kPpuMask   = 0x2001;
+constexpr uint16 kPpuScroll = 0x2005;
 
 TEST_SUITE("PPU Tests") {
 TEST_CASE("PPUCTRL")
@@ -352,6 +353,46 @@ TEST_CASE("OAMADDR/OAMDATA")
         ppu.onCpuWrite(oamAddr, 0x20);
 
         CHECK((ppu.onCpuRead(oamData) == 0x5A));
+    }
+}
+
+TEST_CASE("PPUSCROLL")
+{
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines{};
+    Ppu            ppu(ppuBus, interruptLines);
+    ppu.startup();
+
+    SUBCASE("first write sets w to 1") {
+        auto prevState = ppu.internalRegisters().w;
+        CHECK_EQ(ppu.internalRegisters().w, 0);
+
+        ppu.onCpuWrite(kPpuScroll, 0);
+
+        CHECK_EQ(ppu.internalRegisters().w, 1);
+    }
+    SUBCASE("first write copies lower bits to x and upper bits to coarseX bits of t") {
+        ppu.onCpuWrite(kPpuScroll, 0xA5);
+
+        CHECK_EQ(ppu.internalRegisters().t.coarseX(), 20);
+        CHECK_EQ(ppu.internalRegisters().x, 5);
+    }
+    SUBCASE("second write sets w back to 0") {
+        auto prevState = ppu.internalRegisters().w;
+        CHECK_EQ(ppu.internalRegisters().w, 0);
+
+        ppu.onCpuWrite(kPpuScroll, 0);
+        ppu.onCpuWrite(kPpuScroll, 0);
+
+        CHECK_EQ(ppu.internalRegisters().w, 0);
+    }
+    SUBCASE("second copies lower bits to coarseY and upper bits to fineY of t") {
+        ppu.onCpuWrite(kPpuScroll, 0);
+        ppu.onCpuWrite(kPpuScroll, 0xA5);
+
+        CHECK_EQ(ppu.internalRegisters().t.coarseY(), 20);
+        CHECK_EQ(ppu.internalRegisters().t.fineY(), 5);
     }
 }
 
