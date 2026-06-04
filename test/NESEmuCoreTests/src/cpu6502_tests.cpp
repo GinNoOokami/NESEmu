@@ -316,6 +316,7 @@ TEST_CASE("nestest logs")
     bus.attachRegion(AddressRegion::Cartridge4, memory);
 
     // While there are 8991 log items, there are some illegal opcodes included starting at 5004
+    // TODO: Implement the illegal opcodes to pass all tests
     constexpr int instructionCount = 5003;
     std::ifstream logFile("data/rom/nestest_cpu_only_simple.log");
 
