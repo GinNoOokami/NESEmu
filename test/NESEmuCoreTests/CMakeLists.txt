@@ -40,7 +40,7 @@ set(TEST_STAMP ${TEST_OUTPUT_DATA_DIR}/.extracted.stamp)
 set(TEST_OUTPUT_ROM_DIR ${TEST_OUTPUT_DATA_DIR}/rom)
 
 file(GLOB ROM_FILES CONFIGURE_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/data/rom/*.nes"
+        "${CMAKE_CURRENT_SOURCE_DIR}/data/rom/*.*"
 )
 
 add_custom_command(TARGET NESEmuCoreTests POST_BUILD

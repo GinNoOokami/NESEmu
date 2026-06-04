@@ -9,6 +9,8 @@ public:
     [[nodiscard]] uint8 onCpuRead(uint16_t address) const { return m_memory[address]; }
     void                onCpuWrite(uint16 address, uint8 data) { m_memory[address] = data; }
 
+    uint8* data() { return m_memory.data(); }
+
 private:
     // Tests can use the full 64kb address space
     std::array<uint8, 0x10000> m_memory{};

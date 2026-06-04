@@ -7,6 +7,9 @@
 #include "NESEmuCore/cpu6502.hpp"
 #include "NESEmuCore/interrupt_lines.hpp"
 
+#include <format>
+#include <iostream>
+
 #include <doctest.h>
 
 using namespace NESEmu;
@@ -294,6 +297,62 @@ TEST_CASE("Instruction Tests")
     DEFINE_OPCODE_STEP_TEST(0xfd, "$fd SBC (absolute,X)")
     DEFINE_OPCODE_STEP_TEST(0xfe, "$fe INC (absolute,X)")
 }
+}
+
+TEST_CASE("nestest logs")
+{
+    Clock          clock;
+    MainBus        bus;
+    TestRam        memory;
+    InterruptLines interruptLines;
+    Cpu6502        cpu(clock, bus, interruptLines);
+    bus.attachRegion(AddressRegion::WorkRam, memory);
+    bus.attachRegion(AddressRegion::Ppu, memory);
+    bus.attachRegion(AddressRegion::ApuIo, memory);
+    bus.attachRegion(AddressRegion::Cartridge0, memory);
+    bus.attachRegion(AddressRegion::Cartridge1, memory);
+    bus.attachRegion(AddressRegion::Cartridge2, memory);
+    bus.attachRegion(AddressRegion::Cartridge3, memory);
+    bus.attachRegion(AddressRegion::Cartridge4, memory);
+
+    // While there are 8991 log items, there are some illegal opcodes included starting at 5004
+    constexpr int instructionCount = 5003;
+    std::ifstream logFile("data/rom/nestest_cpu_only_simple.log");
+
+    std::array<std::string, instructionCount> instructions;
+    for (int i = 0; i < instructionCount; i++) {
+        std::string line;
+        std::getline(logFile, line);
+        instructions[i] = line;
+    }
+
+    std::ifstream file("data/rom/nestest.nes");
+
+    // Skip past the header
+    file.seekg(16);
+
+    // Read 16kb into the test memory at 0xC000
+    file.read(reinterpret_cast<char*>(memory.data() + 0xC000), 0x3FFF);
+
+    // The ROM low byte of the reset vector points to an interactive entry point
+    // Set it to 0xC000 which runs in automatic mode
+    bus.write(0xfffc, 0x00);
+
+    cpu.startup();
+
+    for (int i = 0; i < instructionCount; i++) {
+        // nestest captures the state of the cpu at the beginning of the instruction
+        auto s = cpu.state();
+
+        // Create a string that matches the nestest log format
+        auto result = std::format(
+            "{:04X} A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X}",
+            s.pc, s.a, s.x, s.y, s.p, s.sp);
+
+        cpu.execute();
+
+        CHECK_EQ(result, instructions[i]);
+    }
 }
 
 #undef DEFINE_OPCODE_STEP_TEST

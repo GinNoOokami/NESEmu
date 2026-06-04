@@ -299,7 +299,7 @@ void Cpu6502::startup()
     m_state.a  = 0;
     m_state.x  = 0;
     m_state.y  = 0;
-    m_state.p  = 0;
+    setRegister(I, true);
     setRegister(U, true);
 }
 
@@ -544,7 +544,7 @@ template <unsigned OP>
 void Cpu6502::opInvalid()
 {
     // TODO: Log invalid opcode (and halt execution?)
-    throw std::runtime_error("Invalid opcode");
+    throw std::runtime_error("Invalid opcode: " + std::to_string(OP));
 }
 
 void Cpu6502::opADC()
