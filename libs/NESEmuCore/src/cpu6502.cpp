@@ -359,7 +359,7 @@ void Cpu6502::processNmi()
 {
     addressModeImplied();
 
-    const uint16 pc = m_state.pc + 1;
+    const uint16 pc = m_state.pc;
     const uint8  p  = m_state.p & 0b11001111 | 0b00100000;
 
     pushStack(static_cast<uint8>(pc >> 8));

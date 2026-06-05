@@ -105,12 +105,21 @@ TEST_CASE("PC reads reset vector on startup")
 
 TEST_CASE("NMI interrupts")
 {
-    SUBCASE("when requested is cleared by CPU") {
-        Clock          clock;
-        MainBus        bus;
-        InterruptLines interruptLines;
-        Cpu6502        cpu(clock, bus, interruptLines);
+    Clock          clock;
+    MainBus        bus;
+    TestRam        memory;
+    InterruptLines interruptLines;
+    Cpu6502        cpu(clock, bus, interruptLines);
+    bus.attachRegion(AddressRegion::WorkRam, memory);
+    bus.attachRegion(AddressRegion::Ppu, memory);
+    bus.attachRegion(AddressRegion::ApuIo, memory);
+    bus.attachRegion(AddressRegion::Cartridge0, memory);
+    bus.attachRegion(AddressRegion::Cartridge1, memory);
+    bus.attachRegion(AddressRegion::Cartridge2, memory);
+    bus.attachRegion(AddressRegion::Cartridge3, memory);
+    bus.attachRegion(AddressRegion::Cartridge4, memory);
 
+    SUBCASE("when requested is cleared by CPU") {
         interruptLines.nmiActive = true;
 
         cpu.startup();
@@ -120,20 +129,6 @@ TEST_CASE("NMI interrupts")
     }
 
     SUBCASE("when requested sets PC to address at NMI vector") {
-        Clock          clock;
-        MainBus        bus;
-        TestRam        memory;
-        InterruptLines interruptLines;
-        Cpu6502        cpu(clock, bus, interruptLines);
-        bus.attachRegion(AddressRegion::WorkRam, memory);
-        bus.attachRegion(AddressRegion::Ppu, memory);
-        bus.attachRegion(AddressRegion::ApuIo, memory);
-        bus.attachRegion(AddressRegion::Cartridge0, memory);
-        bus.attachRegion(AddressRegion::Cartridge1, memory);
-        bus.attachRegion(AddressRegion::Cartridge2, memory);
-        bus.attachRegion(AddressRegion::Cartridge3, memory);
-        bus.attachRegion(AddressRegion::Cartridge4, memory);
-
         bus.write(0xFFFA, 0x88);
         bus.write(0xFFFB, 0x82);
         interruptLines.nmiActive = true;
@@ -142,6 +137,18 @@ TEST_CASE("NMI interrupts")
         cpu.execute();
 
         CHECK_EQ(cpu.state().pc, 0x8288);
+    }
+
+    SUBCASE("pushes expected return PC to stack") {
+        bus.write(0xFFFC, 0x88);
+        bus.write(0xFFFD, 0x82);
+        interruptLines.nmiActive = true;
+
+        cpu.startup();
+        cpu.execute();
+
+        CHECK_EQ(bus.read(0x1FD), 0x82);
+        CHECK_EQ(bus.read(0x1FC), 0x88);
     }
 }
 
