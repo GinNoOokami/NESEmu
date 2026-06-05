@@ -120,6 +120,16 @@ TEST_CASE("PPUCTRL")
                 CHECK(ppu.ppuCtrl().nmiEnable());
             }
         }
+        SUBCASE("enableNmi triggers NMI during vBlank") {
+            ppu.executeUntil(Ppu::kFrameScanlineWidth * 241 + 1);
+
+            CHECK(ppu.ppuStatus().vBlank());
+            CHECK_FALSE(interruptLines.nmiActive);
+
+            ppu.onCpuWrite(ppuCtrl, 0x80);
+
+            CHECK(interruptLines.nmiActive);
+        }
     }
     SUBCASE("reads open bus latch") {
         ppu.onCpuWrite(ppuCtrl, 0x55);

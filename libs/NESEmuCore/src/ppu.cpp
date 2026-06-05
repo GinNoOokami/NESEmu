@@ -100,10 +100,11 @@ uint8 Ppu::readStatus()
     return status;
 }
 
-void Ppu::setCtrlValue(uint8 data)
+void Ppu::setCtrlValue(const uint8 data)
 {
     m_ppuCtrl.value = data;
     m_registers.t.nametableIndex(m_ppuCtrl.baseNametableAddress());
+    m_interruptLines.nmiActive = m_ppuCtrl.nmiEnable() && m_ppuStatus.vBlank();
 }
 
 void Ppu::writeScrollByte(const uint8 data)
