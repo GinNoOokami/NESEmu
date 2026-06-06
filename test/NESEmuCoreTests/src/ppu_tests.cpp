@@ -9,6 +9,7 @@ using namespace NESEmu;
 constexpr uint16 kPpuCtrl   = 0x2000;
 constexpr uint16 kPpuMask   = 0x2001;
 constexpr uint16 kPpuScroll = 0x2005;
+constexpr uint16 kPpuAddr   = 0x2006;
 
 TEST_SUITE("PPU Tests") {
 TEST_CASE("PPUCTRL")
@@ -750,6 +751,187 @@ TEST_CASE("Render timing")
         SUBCASE("does not copy t to v at dot 257") {}
         SUBCASE("does not copy t to v during pre-render scanline") {}
     }*/
+}
+
+TEST_CASE("Render addressing")
+{
+    struct Case {
+        uint16      inputAddress;
+        uint16      expectedAddress;
+        const char* name;
+    };
+
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines{};
+    Ppu            ppu(ppuBus, interruptLines);
+    ppu.startup();
+
+    SUBCASE("nametable address") {
+        SUBCASE("input address matches expected nametable address") {
+            constexpr Case cases[] = {
+                { 0x0000, 0x2000, "$0000 -> nametable $2000" },
+                { 0x1000, 0x2000, "$1000 -> nametable $2000" },
+                { 0x2000, 0x2000, "$2000 -> nametable $2000" },
+                { 0x2400, 0x2400, "$2400 -> nametable $2400" },
+                { 0x2800, 0x2800, "$2800 -> nametable $2800" },
+                { 0x2C00, 0x2C00, "$2C00 -> nametable $2C00" },
+                { 0x3000, 0x2000, "$3000 -> nametable $2000" },
+                { 0x3400, 0x2400, "$3400 -> nametable $2400" },
+                { 0x3800, 0x2800, "$3800 -> nametable $2800" },
+                { 0x3C00, 0x2C00, "$3C00 -> nametable $2C00" },
+            };
+
+            for (const auto& c : cases) {
+                SUBCASE(c.name) {
+                    ppu.onCpuWrite(kPpuAddr, c.inputAddress >> 8 & 0xFF);
+                    ppu.onCpuWrite(kPpuAddr, c.inputAddress & 0xFF);
+
+                    CHECK_EQ(ppu.internalRegisters().v.nametableAddress(), c.expectedAddress);
+                }
+            }
+        }
+
+        SUBCASE("fineY does not affect nametable address") {
+            ppu.onCpuWrite(kPpuAddr, 0xFC);
+            ppu.onCpuWrite(kPpuAddr, 0x00);
+
+            CHECK_EQ(ppu.internalRegisters().v.nametableAddress(), 0x2C00);
+        }
+    }
+
+    SUBCASE("attribute address") {
+        SUBCASE("input address matches expected nametable address") {
+            constexpr Case cases[] = {
+                // High address bits ($0xxx/$1xxx) are masked off by PPUADDR; only bits 0-13 reach v
+                { 0x0000, 0x23C0, "$0000 -> attribute table $23C0" },
+                { 0x1000, 0x23C0, "$1000 -> attribute table $23C0" },
+
+                // coarseX high 3 bits drive attribute bits 0-2: four consecutive tiles share one attribute byte
+                { 0x2000, 0x23C0, "$2000 (coarseX=0) -> attribute table $23C0" },
+                { 0x2001, 0x23C0, "$2001 (coarseX=1) -> attribute table $23C0" },
+                { 0x2002, 0x23C0, "$2002 (coarseX=2) -> attribute table $23C0" },
+                { 0x2003, 0x23C0, "$2003 (coarseX=3) -> attribute table $23C0" },
+                { 0x2004, 0x23C1, "$2004 (coarseX=4) -> attribute table $23C1" },
+                { 0x201F, 0x23C7, "$201F (coarseX=31) -> attribute table $23C7" },
+
+                // coarseY high 3 bits drive attribute bits 3-5: four tile rows share one attribute byte
+                { 0x2020, 0x23C0, "$2020 (coarseY=1) -> attribute table $23C0" },
+                { 0x203F, 0x23C7, "$203F (coarseY=1,coarseX=31) -> attribute table $23C7" },
+                { 0x2040, 0x23C0, "$2040 (coarseY=2) -> attribute table $23C0" },
+                { 0x2060, 0x23C0, "$2060 (coarseY=3) -> attribute table $23C0" },
+                { 0x207F, 0x23C7, "$207F (coarseY=3,coarseX=31) -> attribute table $23C7" },
+                { 0x2080, 0x23C8, "$2080 (coarseY=4) -> attribute table $23C8" },
+                { 0x2260, 0x23E0, "$2260 (coarseY=19) -> attribute table $23E0" },
+                { 0x23E0, 0x23F8, "$23E0 (coarseY=31) -> attribute table $23F8" },
+                { 0x23FF, 0x23FF, "$23FF (coarseY=31,coarseX=31) -> attribute table $23FF" },
+
+                // Nametable select (bits 10-11) passes straight through to attribute bits 10-11
+                { 0x2400, 0x27C0, "$2400 (NN=1) -> attribute table $27C0" },
+                { 0x2800, 0x2BC0, "$2800 (NN=2) -> attribute table $2BC0" },
+                { 0x2C00, 0x2FC0, "$2C00 (NN=3) -> attribute table $2FC0" },
+                { 0x2FFF, 0x2FFF, "$2FFF (NN=3, coarseY=31, coarseX=31) -> attribute table $2FFF" },
+
+                // $3000-$3FFF mirrors $2000-$2FFF: bit 12 is fineY and does not reach the attribute address
+                { 0x3000, 0x23C0, "$3000 -> attribute table $23C0 (mirrors $2000)" },
+                { 0x3400, 0x27C0, "$3400 -> attribute table $27C0 (mirrors $2400)" },
+                { 0x3800, 0x2BC0, "$3800 -> attribute table $2BC0 (mirrors $2800)" },
+                { 0x3C00, 0x2FC0, "$3C00 -> attribute table $2FC0 (mirrors $2C00)" },
+            };
+
+            for (const auto& c : cases) {
+                SUBCASE(c.name) {
+                    ppu.onCpuWrite(kPpuAddr, c.inputAddress >> 8 & 0xFF);
+                    ppu.onCpuWrite(kPpuAddr, c.inputAddress & 0xFF);
+
+                    CHECK_EQ(ppu.internalRegisters().v.attributeTableAddress(), c.expectedAddress);
+                }
+            }
+        }
+        SUBCASE("fineY does not affect attribute address") {
+            // PPUADDR masks the high byte to 6 bits, so $7C00 lands in v as $3C00:
+            // fineY=3 (bit 14 dropped), NN=3, coarseY=0, coarseX=0 -> same attribute byte as $2C00
+            ppu.onCpuWrite(kPpuAddr, 0x7C00 >> 8 & 0xFF);
+            ppu.onCpuWrite(kPpuAddr, 0x7C00 & 0xFF);
+
+            CHECK_EQ(ppu.internalRegisters().v.attributeTableAddress(), 0x2FC0);
+        }
+    }
+
+    SUBCASE("pattern address") {
+        struct PatternCase {
+            bool        tableSelect;
+            bool        plane;
+            uint8       tileIndex;
+            uint8       tileRow;
+            uint16      expectedAddress;
+            const char* name;
+        };
+
+        constexpr PatternCase cases[] = {
+            // Baseline: every field zero
+            { false, false, 0x00, 0, 0x0000, "all zero -> $0000" },
+
+            // tableSelect routes to bit 12 (which pattern table half)
+            { true, false, 0x00, 0, 0x1000, "tableSelect -> bit 12 ($1000)" },
+
+            // tileIndex shifts into bits 4-11
+            { false, false, 0x01, 0, 0x0010, "tileIndex $01 -> bit 4 ($0010)" },
+            { false, false, 0x0F, 0, 0x00F0, "tileIndex $0F -> $00F0" },
+            { false, false, 0x10, 0, 0x0100, "tileIndex $10 -> $0100" },
+            { false, false, 0x80, 0, 0x0800, "tileIndex $80 -> $0800" },
+            { false, false, 0xFF, 0, 0x0FF0, "tileIndex $FF -> bits 4-11 ($0FF0)" },
+
+            // plane routes to bit 3 (low vs high bit plane of the tile row)
+            { false, true, 0x00, 0, 0x0008, "plane -> bit 3 ($0008)" },
+
+            // tileRow routes to bits 0-2 (row within the tile)
+            { false, false, 0x00, 1, 0x0001, "tileRow 1 -> $0001" },
+            { false, false, 0x00, 7, 0x0007, "tileRow 7 -> bits 0-2 ($0007)" },
+
+            // Adjacency: plane (bit 3) sits directly above tileRow (bits 0-2); together they fill the low nibble
+            { false, true, 0x00, 7, 0x000F, "plane + tileRow 7 -> $000F" },
+
+            // Adjacency: tileIndex's low bit (bit 4) sits directly above plane (bit 3)
+            { false, true, 0x01, 0, 0x0018, "tileIndex $01 + plane -> $0018" },
+
+            // Adjacency: tileIndex's high bit (bit 11) sits directly below tableSelect (bit 12)
+            { true, false, 0xFF, 0, 0x1FF0, "tableSelect + tileIndex $FF -> $1FF0" },
+
+            // All fields saturated -> max pattern address
+            { true, true, 0xFF, 7, 0x1FFF, "all set -> $1FFF" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                CHECK_EQ(Ppu::patternTableAddress(c.tableSelect, c.plane, c.tileIndex, c.tileRow), c.expectedAddress);
+            }
+        }
+    }
+}
+
+TEST_CASE("Background pixel composition")
+{
+    SUBCASE("pattern bytes combine into 2-bit color index") {
+        SUBCASE("both planes zero produces color 0") {}
+        SUBCASE("low plane bit alone produces color 1") {}
+        SUBCASE("high plane bit alone produces color 2") {}
+        SUBCASE("both planes set produces color 3") {}
+        SUBCASE("leftmost pixel selects MSB of pattern bytes") {}
+        SUBCASE("rightmost pixel selects LSB of pattern bytes") {}
+    }
+
+    SUBCASE("attribute byte yields 2-bit palette select for tile quadrant") {
+        SUBCASE("top-left quadrant uses bits 0-1") {}
+        SUBCASE("top-right quadrant uses bits 2-3") {}
+        SUBCASE("bottom-left quadrant uses bits 4-5") {}
+        SUBCASE("bottom-right quadrant uses bits 6-7") {}
+    }
+
+    SUBCASE("final palette index stitches palette select with color") {
+        SUBCASE("color 0 always maps to backdrop regardless of palette select") {}
+        SUBCASE("non-zero color combines with palette select into 4-bit index") {}
+    }
 }
 
 TEST_CASE("NMI interrupt")

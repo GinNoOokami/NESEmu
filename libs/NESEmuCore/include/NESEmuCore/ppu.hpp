@@ -162,7 +162,7 @@ class Ppu {
 
         [[nodiscard]] uint16 attributeTableAddress() const
         {
-            return 0; /* TODO */
+            return 0x23C0 | (value & 0x0C00) | ((value >> 4) & 0x38) | ((value >> 2) & 0x07);
         }
 
         friend bool operator==(const PpuAddress& lhs, const PpuAddress& rhs)
@@ -237,6 +237,8 @@ public:
 
     [[nodiscard]] uint8 onCpuRead(uint16 address);
     void                onCpuWrite(uint16 address, uint8 data);
+
+    [[nodiscard]] static uint16 patternTableAddress(bool tableSelect, bool plane, uint8 tileIndex, uint8 tileRow);
 
 private:
     inline uint8 readStatus();

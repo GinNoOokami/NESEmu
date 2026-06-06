@@ -92,6 +92,11 @@ void Ppu::onCpuWrite(const uint16 address, const uint8 data)
     }
 }
 
+uint16 Ppu::patternTableAddress(const bool tableSelect, const bool plane, const uint8 tileIndex, const uint8 tileRow)
+{
+    return (tableSelect << 12) | (tileIndex << 4) | (plane << 3) | (tileRow & 7);
+}
+
 uint8 Ppu::readStatus()
 {
     uint8 status = m_ppuStatus.status() | (m_busDataLatch & 0x1F);
