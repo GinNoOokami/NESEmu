@@ -92,11 +92,6 @@ void Ppu::onCpuWrite(const uint16 address, const uint8 data)
     }
 }
 
-uint16 Ppu::patternTableAddress(const bool tableSelect, const bool plane, const uint8 tileIndex, const uint8 tileRow)
-{
-    return (tableSelect << 12) | (tileIndex << 4) | (plane << 3) | (tileRow & 7);
-}
-
 uint8 Ppu::readStatus()
 {
     uint8 status = m_ppuStatus.status() | (m_busDataLatch & 0x1F);
@@ -138,12 +133,18 @@ void Ppu::writeAddressByte(const uint8 data)
 void Ppu::writeDataByte(const uint8 data)
 {
     if ((m_registers.v.busAddress() & 0x3F00) == 0x3F00) {
-        const uint8 index    = m_registers.v.busAddress() & 0x001F;
-        m_paletteData[index] = data;
+        const uint8 index = m_registers.v.busAddress() & 0x001F;
+        writePaletteData(index, data);
     } else {
         m_bus.write(m_registers.v.busAddress(), data);
     }
     m_registers.v.increment(kStrideIncrements[m_ppuCtrl.addressIncrementMode()]);
+}
+
+void Ppu::writePaletteData(uint8 index, const uint8 data)
+{
+    if ((index & 3) == 0) { index &= ~0x10; }
+    m_paletteData[index] = data;
 }
 
 uint8 Ppu::readDataByte()
@@ -152,7 +153,7 @@ uint8 Ppu::readDataByte()
 
     if ((m_registers.v.busAddress() & 0x3F00) == 0x3F00) {
         const uint8 index = m_registers.v.busAddress() & 0x001F;
-        value             = m_paletteData[index];
+        value             = readPaletteData(index);
     } else {
         value = m_dataBuffer;
     }
@@ -163,29 +164,50 @@ uint8 Ppu::readDataByte()
     return value;
 }
 
+uint8 Ppu::readPaletteData(uint8 index)
+{
+    if ((index & 3) == 0) { index &= ~0x10; }
+    return m_paletteData[index];
+}
+
 void Ppu::updateScanline()
 {
     if (m_scanline < 240 || m_scanline == kFramePreRenderStart) {
         if (m_dotCycle > 0 && m_dotCycle < 257) {
             // This isn't cycle accurate yet; we wait until the end of the tile and draw it all at once
             if ((m_dotCycle & 7) == 0) {
-                // Fetch nametable, attribute, and pattern byte for this tile:
-                // * Look up the nametable entry from bus based on 0x2000 | (v & 0x0FFF)
+                // Look up the nametable entry
                 m_nameTableByte = m_bus.read(m_registers.v.nametableAddress());
-                // * Look up attribute table entry from bus based on 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
-                //m_attributeTableByte = m_bus.read(m_registers.v.attributeTableAddress());
-                // * Look up pattern low byte based on (bit 4 ppuctrl << 12) | nametableByte << 4 | fineY
-                // * Look up pattern high byte (same as above with bit 3 set)
+
+                // Look up attribute table entry
+                m_attributeTableByte = m_bus.read(m_registers.v.attributeTableAddress());
+
+                // Look up pattern lo and hi bytes
+                const auto patternAddressLo = PatternTable::address(m_ppuCtrl.backgroundPatternTableAddress(), false, m_nameTableByte, m_registers.v.fineY());
+                const auto patternAddressHi = PatternTable::address(m_ppuCtrl.backgroundPatternTableAddress(), true, m_nameTableByte, m_registers.v.fineY());
+
+                m_patternTableLoByte = m_bus.read(patternAddressLo);
+                m_patternTableHiByte = m_bus.read(patternAddressHi);
+
+                // Fetch the current palette table based on the attribute table entry
+                const auto paletteSelect = selectPaletteFromAttribute(m_attributeTableByte, m_registers.v.coarseX(), m_registers.v.coarseY());
+
                 // for each pixel in the tile:
                 // * combine the pattern bits to form the palette index
-                // * fetch the current palette table based on the attribute table entry
                 // * look up the final palette index
                 // * insert value into the buffer array at the current scanline dot
+                const auto tileData = PatternTable::makeTile(m_patternTableLoByte, m_patternTableHiByte);
+                for (uint8 i = 0; i < 8; ++i) {
+                    const uint8 color        = tileData.paletteIndex(i);
+                    const uint8 paletteIndex = (color == 0) ? 0 : (paletteSelect << 2 | color);
+
+                    m_internalFrameBuffer[m_scanline][m_registers.v.coarseX() * 8 + i] = m_paletteData[paletteIndex];
+                }
                 m_registers.v.incCoarseX();
             }
             // TODO: Temp code - remove when render fully implemented
             // Just output the nametable byte as a direct color palette lookup for now
-            m_internalFrameBuffer[m_scanline][m_dotCycle] = m_nameTableByte & 0x3F;
+            //m_internalFrameBuffer[m_scanline][m_dotCycle] = m_nameTableByte & 0x3F;
 
             if (m_dotCycle == 256) {
                 m_registers.v.incFineY();

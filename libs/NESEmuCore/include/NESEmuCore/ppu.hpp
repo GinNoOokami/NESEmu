@@ -220,6 +220,33 @@ public:
     static constexpr int kFrameScanlineMax   = 262;
     static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
 
+    struct PatternTable {
+        class TilePattern {
+        public:
+            TilePattern(const uint8 bitPlaneLo, const uint8 bitPlaneHi) : m_bitPlaneLo(bitPlaneLo), m_bitPlaneHi(bitPlaneHi) {}
+
+            uint8 paletteIndex(const uint8 dot) const
+            {
+                const uint8 bit = 7 - dot;
+                return ((m_bitPlaneHi >> bit & 1) << 1) | ((m_bitPlaneLo >> bit) & 1);
+            }
+
+        private:
+            uint8 m_bitPlaneHi{};
+            uint8 m_bitPlaneLo{};
+        };
+
+        [[nodiscard]] static uint16 address(const bool tableSelect, const bool plane, const uint8 tileIndex, const uint8 tileRow)
+        {
+            return (tableSelect << 12) | (tileIndex << 4) | (plane << 3) | (tileRow & 7);
+        }
+
+        [[nodiscard]] static TilePattern makeTile(const uint8 bitPlaneLo, const uint8 bitPlaneHi)
+        {
+            return TilePattern(bitPlaneLo, bitPlaneHi);
+        }
+    };
+
     explicit Ppu(PpuBus& ppuBus, InterruptLines& interruptLines);
 
     void startup();
@@ -238,7 +265,14 @@ public:
     [[nodiscard]] uint8 onCpuRead(uint16 address);
     void                onCpuWrite(uint16 address, uint8 data);
 
-    [[nodiscard]] static uint16 patternTableAddress(bool tableSelect, bool plane, uint8 tileIndex, uint8 tileRow);
+    void updateVisibleFrameBuffer();
+
+    [[nodiscard]] static uint8 selectPaletteFromAttribute(uint8 attribute, uint8 coarseX, uint8 coarseY)
+    {
+        const uint8 shiftOffset = ((coarseY & 0x2) | ((coarseX & 0x2) >> 1)) << 1;
+
+        return (attribute >> shiftOffset) & 0x3;
+    }
 
 private:
     inline uint8 readStatus();
@@ -246,10 +280,11 @@ private:
     inline void  writeScrollByte(uint8 data);
     inline void  writeAddressByte(uint8 data);
     inline void  writeDataByte(uint8 data);
+    inline void  writePaletteData(uint8 index, uint8 data);
     inline uint8 readDataByte();
+    inline uint8 readPaletteData(uint8 index);
     inline void  updateScanline();
     inline void  advanceScanline();
-    void         updateVisibleFrameBuffer();
 
 private:
     using InternalFrameBuffer = std::array<std::array<PaletteIndex, kFrameScanlineWidth>, kFrameScanlineMax>;

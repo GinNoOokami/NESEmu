@@ -904,7 +904,7 @@ TEST_CASE("Render addressing")
 
         for (const auto& c : cases) {
             SUBCASE(c.name) {
-                CHECK_EQ(Ppu::patternTableAddress(c.tableSelect, c.plane, c.tileIndex, c.tileRow), c.expectedAddress);
+                CHECK_EQ(Ppu::PatternTable::address(c.tableSelect, c.plane, c.tileIndex, c.tileRow), c.expectedAddress);
             }
         }
     }
@@ -913,24 +913,205 @@ TEST_CASE("Render addressing")
 TEST_CASE("Background pixel composition")
 {
     SUBCASE("pattern bytes combine into 2-bit color index") {
-        SUBCASE("both planes zero produces color 0") {}
-        SUBCASE("low plane bit alone produces color 1") {}
-        SUBCASE("high plane bit alone produces color 2") {}
-        SUBCASE("both planes set produces color 3") {}
-        SUBCASE("leftmost pixel selects MSB of pattern bytes") {}
-        SUBCASE("rightmost pixel selects LSB of pattern bytes") {}
+        // dot is screen-x: dot 0 is the leftmost pixel (bit 7), dot 7 the rightmost (bit 0).
+        // color = (hiBit << 1) | loBit, where the bit read at dot d is bit (7 - d) of each plane.
+        struct Case {
+            uint8       bitPlaneLo;
+            uint8       bitPlaneHi;
+            uint8       expected[8]; // expected color per dot, dot 0 (leftmost) first
+            const char* name;
+        };
+
+        constexpr Case cases[] = {
+            // Uniform planes: same color across the whole row
+            { 0x00, 0x00, { 0, 0, 0, 0, 0, 0, 0, 0 }, "both planes clear -> all color 0" },
+            { 0xFF, 0x00, { 1, 1, 1, 1, 1, 1, 1, 1 }, "low plane all set -> all color 1" },
+            { 0x00, 0xFF, { 2, 2, 2, 2, 2, 2, 2, 2 }, "high plane all set -> all color 2" },
+            { 0xFF, 0xFF, { 3, 3, 3, 3, 3, 3, 3, 3 }, "both planes all set -> all color 3" },
+
+            // Single bit: isolates the leftmost (MSB) and rightmost (LSB) pixel positions
+            { 0x80, 0x00, { 1, 0, 0, 0, 0, 0, 0, 0 }, "low plane MSB -> color 1 at dot 0 only" },
+            { 0x01, 0x00, { 0, 0, 0, 0, 0, 0, 0, 1 }, "low plane LSB -> color 1 at dot 7 only" },
+            { 0x00, 0x80, { 2, 0, 0, 0, 0, 0, 0, 0 }, "high plane MSB -> color 2 at dot 0 only" },
+            { 0x00, 0x01, { 0, 0, 0, 0, 0, 0, 0, 2 }, "high plane LSB -> color 2 at dot 7 only" },
+            { 0x80, 0x80, { 3, 0, 0, 0, 0, 0, 0, 0 }, "both planes MSB -> color 3 at dot 0 only" },
+            { 0x01, 0x01, { 0, 0, 0, 0, 0, 0, 0, 3 }, "both planes LSB -> color 3 at dot 7 only" },
+
+            // Mixed planes: every dot combines its two plane bits independently
+            { 0xAA, 0xCC, { 3, 2, 1, 0, 3, 2, 1, 0 }, "lo=$AA hi=$CC -> 3,2,1,0 repeating" },
+            { 0xCC, 0xAA, { 3, 1, 2, 0, 3, 1, 2, 0 }, "lo=$CC hi=$AA -> 3,1,2,0 repeating" },
+            { 0x0F, 0xF0, { 2, 2, 2, 2, 1, 1, 1, 1 }, "lo=$0F hi=$F0 -> left half color 2, right half color 1" },
+            { 0x3C, 0x18, { 0, 0, 1, 3, 3, 1, 0, 0 }, "lo=$3C hi=$18 -> 0,0,1,3,3,1,0,0" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                auto tilePattern = Ppu::PatternTable::makeTile(c.bitPlaneLo, c.bitPlaneHi);
+                for (uint8 dot = 0; dot < 8; ++dot) {
+                    CAPTURE(dot);
+                    CHECK_EQ(tilePattern.paletteIndex(dot), c.expected[dot]);
+                }
+            }
+        }
     }
 
     SUBCASE("attribute byte yields 2-bit palette select for tile quadrant") {
-        SUBCASE("top-left quadrant uses bits 0-1") {}
-        SUBCASE("top-right quadrant uses bits 2-3") {}
-        SUBCASE("bottom-left quadrant uses bits 4-5") {}
-        SUBCASE("bottom-right quadrant uses bits 6-7") {}
+        // The quadrant is chosen by bit 1 of coarseX (left/right half) and bit 1 of coarseY
+        // (top/bottom half) of the 4x4-tile attribute region. Quadrant -> bit pair:
+        //   top-left  = bits 1-0, top-right    = bits 3-2,
+        //   bottom-left = bits 5-4, bottom-right = bits 7-6.
+        struct Case {
+            uint8       attributeByte;
+            uint8       coarseX;
+            uint8       coarseY;
+            uint8       expected;
+            const char* name;
+        };
+
+        // 0xE4 = 0b11'10'01'00: each quadrant holds its own index (TL=0,TR=1,BL=2,BR=3)
+        // 0x1B = 0b00'01'10'11: reversed, guards against an identity-shift shortcut
+        constexpr Case cases[] = {
+            // Quadrant selection with the distinct-per-quadrant byte (coarseX/Y bit 1 chooses)
+            { 0xE4, 0, 0, 0, "$E4 TL (cX bit1=0, cY bit1=0) -> 0" },
+            { 0xE4, 2, 0, 1, "$E4 TR (cX bit1=1, cY bit1=0) -> 1" },
+            { 0xE4, 0, 2, 2, "$E4 BL (cX bit1=0, cY bit1=1) -> 2" },
+            { 0xE4, 2, 2, 3, "$E4 BR (cX bit1=1, cY bit1=1) -> 3" },
+
+            // Same byte, reversed packing: confirms each quadrant reads its own 2-bit field
+            { 0x1B, 0, 0, 3, "$1B TL -> 3" },
+            { 0x1B, 2, 0, 2, "$1B TR -> 2" },
+            { 0x1B, 0, 2, 1, "$1B BL -> 1" },
+            { 0x1B, 2, 2, 0, "$1B BR -> 0" },
+
+            // Only bit 1 of coarse position matters: bit 0 must not change the quadrant.
+            // coarseX 0 and 1 are the same quadrant column; 2 and 3 are the next.
+            { 0xE4, 1, 0, 0, "$E4 cX=1 (bit0 set) stays in TL -> 0" },
+            { 0xE4, 3, 0, 1, "$E4 cX=3 stays in TR -> 1" },
+            { 0xE4, 0, 1, 0, "$E4 cY=1 (bit0 set) stays in TL -> 0" },
+            { 0xE4, 0, 3, 2, "$E4 cY=3 stays in BL -> 2" },
+
+            // High bits of coarseX/Y (>=4, the next attribute region) must not leak into the
+            // quadrant select: bit 2 and above are masked away by the lookup.
+            { 0xE4, 4, 0, 0, "$E4 cX=4 (bit2 set) -> TL, not affected -> 0" },
+            { 0xE4, 6, 0, 1, "$E4 cX=6 (bits 2+1) -> TR -> 1" },
+            { 0xE4, 0, 4, 0, "$E4 cY=4 -> TL -> 0" },
+            { 0xE4, 0, 6, 2, "$E4 cY=6 -> BL -> 2" },
+            { 0xE4, 31, 31, 3, "$E4 cX=31 cY=31 (max coarse) -> BR -> 3" },
+
+            // Uniform byte: every quadrant yields the same value
+            { 0xFF, 0, 0, 3, "$FF TL -> 3" },
+            { 0xFF, 2, 2, 3, "$FF BR -> 3" },
+            { 0x00, 2, 2, 0, "$00 BR -> 0" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                CHECK_EQ(Ppu::selectPaletteFromAttribute(c.attributeByte, c.coarseX, c.coarseY), c.expected);
+            }
+        }
     }
 
     SUBCASE("final palette index stitches palette select with color") {
-        SUBCASE("color 0 always maps to backdrop regardless of palette select") {}
-        SUBCASE("non-zero color combines with palette select into 4-bit index") {}
+        // Drives a real render of a single tile on scanline 0 and reads the composed pixel
+        // back through the visible frame buffer. Pattern data is served by a CHR cartridge;
+        // nametable/attribute bytes live in CIRAM. The composition rule under test:
+        //   color 0  -> palette index 0 ($3F00 backdrop), palette select ignored
+        //   color !=0 -> (paletteSelect << 2) | color
+        struct PatternTestCartridge {
+            // Pattern table half 0: tile 0 occupies $0000-$000F (lo plane $0000-7, hi plane $0008-F)
+            uint8 planeLo{};
+            uint8 planeHi{};
+
+            uint8 onPpuRead(const uint16 addr) const
+            {
+                if (addr <= 0x0007)
+                    return planeLo; // every row of tile 0 returns the same lo byte
+                if (addr <= 0x000F)
+                    return planeHi;
+                return 0;
+            }
+
+            static void onPpuWrite(uint16, uint8) {}
+
+            [[nodiscard]] static bool isCiRamEnabled() { return true; }
+            [[nodiscard]] static bool isHorizontalMirrored() { return false; }
+        };
+
+        constexpr uint16 ppuAddr = 0x2006;
+        constexpr uint16 ppuData = 0x2007;
+        constexpr uint16 ppuMask = 0x2001;
+
+        // Distinct palette RAM markers so a wrong index is unambiguous.
+        // Index:  0    1    2    3     4    5    6    7     ...  15
+        //        bg0  ...                                        bg3-c3
+        constexpr uint8 backdrop = 0x21; // $3F00 universal background (e.g. SMB sky blue)
+
+        struct Case {
+            uint8       planeLo; // low bit-plane byte for the tile row
+            uint8       planeHi; // high bit-plane byte
+            uint8       attributeByte; // selects the palette for the rendered quadrant (TL here)
+            uint8       leftPixel; // expected palette VALUE at dot 0 (bit 7 of the planes)
+            const char* name;
+        };
+
+        // Palette RAM is filled below as m_paletteData[i] = 0x30 + i for i in 1..15, backdrop at 0.
+        // So a non-zero composed index N is expected to read back as 0x30 + N.
+        const auto expectedValueForIndex = [&](const uint8 index) -> uint8 {
+            return index == 0 ? backdrop : static_cast<uint8>(0x30 + index);
+        };
+
+        const Case cases[] = {
+            // color 0 at dot 0 -> backdrop regardless of palette select (attribute byte)
+            { 0x00, 0x00, 0x00, backdrop, "color 0, select 0 -> backdrop" },
+            { 0x00, 0x00, 0x01, backdrop, "color 0, select 1 -> backdrop (select ignored)" },
+            { 0x00, 0x00, 0x03, backdrop, "color 0, select 3 -> backdrop (select ignored)" },
+
+            // non-zero color at dot 0 (bit 7 set) -> (select << 2) | color
+            { 0x80, 0x00, 0x00, expectedValueForIndex(1), "color 1, select 0 -> index 1" },
+            { 0x00, 0x80, 0x00, expectedValueForIndex(2), "color 2, select 0 -> index 2" },
+            { 0x80, 0x80, 0x00, expectedValueForIndex(3), "color 3, select 0 -> index 3" },
+            { 0x80, 0x00, 0x01, expectedValueForIndex(5), "color 1, select 1 -> index 5" },
+            { 0x00, 0x80, 0x01, expectedValueForIndex(6), "color 2, select 1 -> index 6" },
+            { 0x80, 0x80, 0x03, expectedValueForIndex(15), "color 3, select 3 -> index 15" },
+        };
+
+        for (const auto& c : cases) {
+            SUBCASE(c.name) {
+                PatternTestCartridge cartridge{ c.planeLo, c.planeHi };
+                CiRam                ciram;
+                PpuBus               ppuBus(ciram);
+                InterruptLines       interruptLines{};
+                Ppu                  ppu(ppuBus, interruptLines);
+                ppuBus.attachCartridge(cartridge);
+                ppu.startup();
+
+                // Fill the background palettes only ($3F00-$3F0F): backdrop at $3F00, distinct
+                // markers 0x31..0x3F at $3F01..$3F0F. We deliberately stop at $3F0F so the fill
+                // never touches $3F10/14/18/1C, which mirror down onto $3F00/04/08/0C and would
+                // otherwise clobber the values we just wrote.
+                ppu.onCpuWrite(ppuAddr, 0x3F);
+                ppu.onCpuWrite(ppuAddr, 0x00);
+                ppu.onCpuWrite(ppuData, backdrop);
+                for (uint8 i = 1; i < 0x10; ++i) {
+                    ppu.onCpuWrite(ppuData, static_cast<uint8>(0x30 + i));
+                }
+
+                // Tile 0 at nametable $2000; attribute byte at $23C0 (covers the top-left quadrant)
+                ppuBus.write(0x2000, 0x00);
+                ppuBus.write(0x23C0, c.attributeByte);
+
+                // Point v at coarseX=0, coarseY=0, nametable 0 so the tile renders at pixels 0-7, TL quadrant
+                ppu.onCpuWrite(ppuAddr, 0x20);
+                ppu.onCpuWrite(ppuAddr, 0x00);
+
+                // Enable background rendering and advance far enough to fetch+compose tile 0 of scanline 0
+                ppu.onCpuWrite(ppuMask, 0x08);
+                ppu.executeUntil(9);
+                ppu.updateVisibleFrameBuffer();
+
+                CHECK_EQ(ppu.frameBuffer()[0], c.leftPixel);
+            }
+        }
     }
 }
 
