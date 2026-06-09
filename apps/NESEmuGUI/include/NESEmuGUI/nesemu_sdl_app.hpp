@@ -3,6 +3,7 @@
 
 #include "app.hpp"
 #include "NESEmuCore/emu_types.hpp"
+#include "NESEmuGUI/fps.hpp"
 #include "nesemu_args.hpp"
 
 #include <memory>
@@ -57,6 +58,7 @@ private:
 
     bool m_initialized{};
     bool m_running{};
+    Fps  m_fps{};
 };
 }
 

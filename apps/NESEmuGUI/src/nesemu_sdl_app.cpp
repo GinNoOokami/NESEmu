@@ -24,6 +24,8 @@ void NESEmu::NESEmuSdlApp::initialize(NESEmuArgs args)
         loadAndPlayCartridge(args.cartridgeFilename);
     }
 
+    m_fps.initialize();
+
     m_initialized = true;
 }
 
@@ -115,10 +117,10 @@ void NESEmu::NESEmuSdlApp::stopAndUnloadCartridge()
 
 void NESEmu::NESEmuSdlApp::handleMainLoop()
 {
-    const float kFrameRate = static_cast<float>(System::kMasterClockFrameCycles) / static_cast<float>(m_system->targetMasterFrameCycles());
+    const float kFrameRate = static_cast<float>(System::kMasterClockSpeedHz) / static_cast<float>(m_system->targetMasterFrameCycles());
     const float kFrameTime = 1000.f / static_cast<float>(kFrameRate);
 
-    m_elapsedTime += static_cast<float>(SDL_GetTicks()) - m_elapsedTime;
+    m_elapsedTime = static_cast<float>(SDL_GetTicks());
 
     if (m_elapsedTime >= m_nextFrame) {
         float delta = m_elapsedTime - m_nextFrame;
@@ -145,6 +147,11 @@ void NESEmu::NESEmuSdlApp::handleMainLoop()
 
         // Calculate the last frame time after emulation step
         m_lastFrame = static_cast<float>(SDL_GetTicks());
+
+        m_fps.update();
+
+        const auto title = std::format("NES Emulator - {:.2f} fps", m_fps.getFps());
+        SDL_SetWindowTitle(m_window, title.c_str());
     } else if (m_nextFrame - m_elapsedTime > 1.f) {
         // Wait a bit if we can, so we don't hog the cpu
         SDL_Delay(1);

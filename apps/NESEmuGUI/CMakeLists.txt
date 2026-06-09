@@ -12,6 +12,7 @@ add_executable(NESEmuGUI)
 target_sources(NESEmuGUI
     PRIVATE
         src/main.cpp
+        src/fps.cpp
         src/nesemu_sdl_app.cpp
 
     PUBLIC
@@ -20,6 +21,7 @@ target_sources(NESEmuGUI
             include
         FILES
             include/NESEmuGUI/app.hpp
+            include/NESEmuGUI/fps.hpp
             include/NESEmuGUI/nesemu_sdl_app.hpp
 )
 

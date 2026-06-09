@@ -16,6 +16,7 @@ class MapperNRom;
 
 class System {
 public:
+    static constexpr uint32 kMasterClockSpeedHz     = 21477272;
     static constexpr uint32 kMasterClockFrameCycles = 357368;
 
     System();
