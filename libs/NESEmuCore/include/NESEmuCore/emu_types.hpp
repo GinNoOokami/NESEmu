@@ -19,6 +19,23 @@ using sint32 = std::int32_t;
 
 using PaletteIndex = uint8;
 using FrameBuffer  = std::array<PaletteIndex, kScreenDotWidth * kScreenDotHeight>;
+
+enum InputPort {
+    Joypad1,
+    Joypad2,
+    kMaxInputPorts
+};
+
+enum class InputButtons {
+    A = 1 << 0,
+    B = 1 << 1,
+    Select = 1 << 2,
+    Start = 1 << 3,
+    Up = 1 << 4,
+    Down = 1 << 5,
+    Left = 1 << 6,
+    Right = 1 << 7,
+};
 }
 
 #endif //NESEMU_EMU_TYPES_HPP

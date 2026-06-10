@@ -6,6 +6,7 @@ target_sources(NESEmuCore
         src/bus.cpp
         src/cpu6502.cpp
         src/cartridge.cpp
+        src/controller.cpp
         src/dma.cpp
         src/mapper_nrom.cpp
         src/ppu.cpp
@@ -21,6 +22,7 @@ target_sources(NESEmuCore
             include/NESEmuCore/bus.hpp
             include/NESEmuCore/cartridge.hpp
             include/NESEmuCore/clock.hpp
+            include/NESEmuCore/controller.hpp
             include/NESEmuCore/cpu6502.hpp
             include/NESEmuCore/dma.hpp
             include/NESEmuCore/debug_format.hpp

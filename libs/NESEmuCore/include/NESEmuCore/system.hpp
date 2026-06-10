@@ -26,6 +26,8 @@ public:
     void runFrame();
     void shutdown();
 
+    void attachController(InputPort port, Controller* controller);
+
     // TODO: Handle one dot less every other PPU frame when rendering is enabled
     [[nodiscard]] constexpr uint32 targetMasterFrameCycles() const { return kMasterClockFrameCycles; }
 

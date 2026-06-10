@@ -13,6 +13,7 @@ target_sources(NESEmuCoreTests
             src/cartridge_tests.cpp
             src/cpu6502_tests.cpp
             src/dma_tests.cpp
+            src/input_tests.cpp
             src/ppu_tests.cpp
             src/system_tests.cpp
 

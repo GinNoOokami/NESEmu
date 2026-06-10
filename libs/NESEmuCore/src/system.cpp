@@ -52,3 +52,8 @@ void NESEmu::System::shutdown()
 
     mCartridgeLoaded = false;
 }
+
+void NESEmu::System::attachController(InputPort port, Controller* controller)
+{
+    m_cpu.attachController(port, controller);
+}
