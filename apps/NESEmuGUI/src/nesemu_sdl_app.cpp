@@ -3,6 +3,7 @@
 #include "NESEmuGUI/nesemu_sdl_app.hpp"
 
 #include "NESEmuCore/cartridge.hpp"
+#include "NESEmuCore/controller.hpp"
 #include "NESEmuCore/palette.hpp"
 #include "NESEmuCore/system.hpp"
 
@@ -12,7 +13,9 @@
 #include <stdexcept>
 
 NESEmu::NESEmuSdlApp::NESEmuSdlApp()
-    : m_system(std::make_unique<System>()), m_palette(Palette::defaultPalette) {}
+    : m_system(std::make_unique<System>()),
+      m_controller(std::make_unique<Controller>()),
+      m_palette(Palette::defaultPalette) {}
 
 NESEmu::NESEmuSdlApp::~NESEmuSdlApp() = default;
 
@@ -90,7 +93,77 @@ void NESEmu::NESEmuSdlApp::handleSdlEvents()
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_EVENT_QUIT) {
             m_running = false;
+        } else if (e.type == SDL_EVENT_KEY_DOWN) {
+            handleSdlKeyPressedEvent(e.key);
+        } else if (e.type == SDL_EVENT_KEY_UP) {
+            handleSdlKeyReleasedEvent(e.key);
         }
+    }
+}
+
+void NESEmu::NESEmuSdlApp::handleSdlKeyPressedEvent(const SDL_KeyboardEvent& key)
+{
+    switch (key.key) {
+        case SDLK_A:
+            m_controller->simulatePress(InputButtons::A);
+            break;
+        case SDLK_S:
+            m_controller->simulatePress(InputButtons::B);
+            break;
+        case SDLK_RSHIFT:
+            m_controller->simulatePress(InputButtons::Select);
+            break;
+        case SDLK_RETURN:
+            m_controller->simulatePress(InputButtons::Start);
+            break;
+        case SDLK_UP:
+            m_controller->simulatePress(InputButtons::Up);
+            break;
+        case SDLK_DOWN:
+            m_controller->simulatePress(InputButtons::Down);
+            break;
+        case SDLK_LEFT:
+            m_controller->simulatePress(InputButtons::Left);
+            break;
+        case SDLK_RIGHT:
+            m_controller->simulatePress(InputButtons::Right);
+            break;
+        default:
+            // Do nothing
+            break;
+    }
+}
+
+void NESEmu::NESEmuSdlApp::handleSdlKeyReleasedEvent(const SDL_KeyboardEvent& key)
+{
+    switch (key.key) {
+        case SDLK_A:
+            m_controller->simulateRelease(InputButtons::A);
+            break;
+        case SDLK_S:
+            m_controller->simulateRelease(InputButtons::B);
+            break;
+        case SDLK_RSHIFT:
+            m_controller->simulateRelease(InputButtons::Select);
+            break;
+        case SDLK_RETURN:
+            m_controller->simulateRelease(InputButtons::Start);
+            break;
+        case SDLK_UP:
+            m_controller->simulateRelease(InputButtons::Up);
+            break;
+        case SDLK_DOWN:
+            m_controller->simulateRelease(InputButtons::Down);
+            break;
+        case SDLK_LEFT:
+            m_controller->simulateRelease(InputButtons::Left);
+            break;
+        case SDLK_RIGHT:
+            m_controller->simulateRelease(InputButtons::Right);
+            break;
+        default:
+            // Do nothing
+            break;
     }
 }
 
@@ -105,6 +178,7 @@ void NESEmu::NESEmuSdlApp::shutdownSdl() const
 void NESEmu::NESEmuSdlApp::loadAndPlayCartridge(const std::string& filename)
 {
     m_cartridge = Cartridge::createFromFile(filename);
+    m_system->attachController(InputPort::Joypad1, m_controller.get());
     m_system->startup(*m_cartridge);
 }
 

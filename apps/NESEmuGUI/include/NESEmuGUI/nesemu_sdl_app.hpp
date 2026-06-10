@@ -2,6 +2,7 @@
 #define NESEMU_SDL_APP_HPP
 
 #include "app.hpp"
+
 #include "NESEmuCore/emu_types.hpp"
 #include "NESEmuGUI/fps.hpp"
 #include "nesemu_args.hpp"
@@ -11,8 +12,10 @@
 struct SDL_Window;
 struct SDL_Renderer;
 struct SDL_Texture;
+struct SDL_KeyboardEvent;
 
 namespace NESEmu {
+class Controller;
 class Palette;
 class Cartridge;
 class System;
@@ -31,6 +34,8 @@ public:
 private:
     void initSdl();
     void handleSdlEvents();
+    void handleSdlKeyPressedEvent(const SDL_KeyboardEvent& key);
+    void handleSdlKeyReleasedEvent(const SDL_KeyboardEvent& key);
     void shutdownSdl() const;
 
     void loadAndPlayCartridge(const std::string& filename);
@@ -45,9 +50,10 @@ private:
     SDL_Renderer* m_renderer{};
     SDL_Texture*  m_texture{};
 
-    std::unique_ptr<Cartridge> m_cartridge{};
-    std::unique_ptr<System>    m_system{};
-    const Palette&             m_palette;
+    std::unique_ptr<Cartridge>  m_cartridge{};
+    std::unique_ptr<System>     m_system{};
+    std::unique_ptr<Controller> m_controller{};
+    const Palette&              m_palette;
 
     float    m_elapsedTime{};
     float    m_nextFrame{};
