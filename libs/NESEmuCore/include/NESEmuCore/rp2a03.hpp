@@ -13,6 +13,7 @@ class Rp2A03 {
 public:
     enum class Registers : uint16 {
         kOamDmaTransfer = 0x4014,
+        kJoypadCtrl = 0x4016,
         kJoypad1 = 0x4016,
         kJoypad2 = 0x4017,
     };

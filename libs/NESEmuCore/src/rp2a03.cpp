@@ -38,7 +38,7 @@ uint8 Rp2A03::onCpuRead(const uint16 address)
         default:
             break;
     }
-    
+
     // Note: Open bus behavior will be incorrect here
     return 0;
 }
@@ -49,8 +49,7 @@ void Rp2A03::onCpuWrite(uint16 address, uint8 data)
         case Registers::kOamDmaTransfer:
             m_dma.requestOamDma(data);
             break;
-        case Registers::kJoypad1:
-        case Registers::kJoypad2:
+        case Registers::kJoypadCtrl:
             writeController(data);
             break;
         default:

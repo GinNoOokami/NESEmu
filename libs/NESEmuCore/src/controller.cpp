@@ -6,7 +6,8 @@ using namespace NESEmu;
 void Controller::reset()
 {
     m_strobing       = false;
-    m_simulatedState = false;
+    m_simulatedState = 0;
+    m_latchedState   = 0;
 }
 
 void Controller::startPoll()
