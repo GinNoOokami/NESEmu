@@ -198,16 +198,22 @@ void Ppu::updateScanline()
                 // * insert value into the buffer array at the current scanline dot
                 const auto tileData = PatternTable::makeTile(m_patternTableLoByte, m_patternTableHiByte);
                 for (uint8 i = 0; i < 8; ++i) {
-                    const uint8 color        = tileData.paletteIndex(i);
-                    const uint8 paletteIndex = (color == 0) ? 0 : (paletteSelect << 2 | color);
+                    const uint16 dot     = m_dotCycle - 8 + i;
+                    const uint8  bgColor = tileData.paletteIndex(i);
 
-                    m_internalFrameBuffer[m_scanline][m_registers.v.coarseX() * 8 + i] = m_paletteData[paletteIndex];
+                    uint8 paletteIndex = (bgColor == 0) ? 0 : (paletteSelect << 2 | bgColor);
+
+                    if (m_ppuMask.spriteEnabled()) {
+                        uint8 spritePaletteIndex = evaluateSpritePaletteIndex(dot, bgColor > 0);
+                        if (spritePaletteIndex & 0x03) {
+                            paletteIndex = spritePaletteIndex;
+                        }
+                    }
+
+                    m_internalFrameBuffer[m_scanline][dot] = m_paletteData[paletteIndex];
                 }
                 m_registers.v.incCoarseX();
             }
-            // TODO: Temp code - remove when render fully implemented
-            // Just output the nametable byte as a direct color palette lookup for now
-            //m_internalFrameBuffer[m_scanline][m_dotCycle] = m_nameTableByte & 0x3F;
 
             if (m_dotCycle == 256) {
                 m_registers.v.incFineY();
@@ -234,6 +240,7 @@ void Ppu::advanceScanline()
             break;
         case kFramePreRenderStart:
             m_ppuStatus.vBlank(false);
+            m_ppuStatus.spriteZeroHit(false);
             updateVisibleFrameBuffer();
             break;
         case kFrameScanlineMax:
@@ -241,6 +248,67 @@ void Ppu::advanceScanline()
             break;
         default:
             break;
+    }
+    processSpriteEvaluation();
+}
+
+uint8 Ppu::evaluateSpritePaletteIndex(const uint16 dot, const bool isBgSolid)
+{
+    uint8 spriteColor        = 0;
+    uint8 spritePaletteIndex = 0;
+
+    for (int j = 7; j >= 0; --j) {
+        const auto& [y, tile, attributes, x] = m_oamBuffer.data[j];
+        if (y != 0xFF && dot >= x && dot < x + 8) {
+            uint8 row = m_scanline - y;
+            uint8 col = dot - x & 0x7;
+
+            if (attributes & 0x80) {
+                row = 7 - row;
+            }
+
+            if (attributes & 0x40) {
+                col = 7 - col;
+            }
+
+            const auto spritePatternAddressLo = PatternTable::address(m_ppuCtrl.spritePatternTableAddress(), false, tile, row);
+            const auto spritePatternAddressHi = PatternTable::address(m_ppuCtrl.spritePatternTableAddress(), true, tile, row);
+
+            const auto spritePattern = PatternTable::makeTile(m_bus.read(spritePatternAddressLo), m_bus.read(spritePatternAddressHi));
+            spriteColor              = spritePattern.paletteIndex(col);
+            spritePaletteIndex       = attributes & 0x03;
+
+            if (j == 0 && m_canSpriteZeroTrigger && isBgSolid && spriteColor > 0) {
+                m_ppuStatus.spriteZeroHit(true);
+            }
+        }
+    }
+
+    return 0x10 | (spritePaletteIndex << 2 | spriteColor);
+}
+
+void Ppu::processSpriteEvaluation()
+{
+    if (m_scanline < kFramePostRenderStart) {
+        // Clear internal OAM to 0xFF each scanline
+        for (int i = 0; i < 32; ++i) {
+            m_oamBuffer.raw[i] = 0xFF;
+        }
+
+        m_canSpriteZeroTrigger = false;
+
+        int count = 0;
+        for (int i = 0; i < 64; ++i) {
+            const auto& spriteData = m_oam.data[i];
+            if (spriteData.y != 0xFF && m_scanline >= spriteData.y && m_scanline < spriteData.y + 8) {
+                m_oamBuffer.data[count++] = spriteData;
+                if (i == 0) { m_canSpriteZeroTrigger = true; }
+                if (count > 8) {
+                    // TODO: Set overflow flag
+                    break;
+                }
+            }
+        }
     }
 }
 

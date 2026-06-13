@@ -109,6 +109,10 @@ class Ppu {
         [[nodiscard]] uint8 status() const { return value & 0b1110'0000; }
 
         // (0: Off, 1: On)
+        [[nodiscard]] bool spriteZeroHit() const { return value & 0b0100'0000; }
+        void               spriteZeroHit(const bool enable) { value = (value & ~0b0100'0000) | (enable << 6); }
+
+        // (0: Off, 1: On)
         [[nodiscard]] bool vBlank() const { return value & 0b1000'0000; }
         void               vBlank(const bool enable) { value = (value & ~0b1000'0000) | (enable << 7); }
 
@@ -196,17 +200,19 @@ class Ppu {
         uint16 value{};
     };
 
-    union Oam {
-        struct OamData {
-            uint8 y;
-            uint8 tile;
-            uint8 attributes;
-            uint8 x;
-        };
-
-        std::array<uint8, 256>  raw;
-        std::array<OamData, 64> data;
+    struct OamData {
+        uint8 y;
+        uint8 tile;
+        uint8 attributes;
+        uint8 x;
     };
+
+    template <int Size>
+    union Oam {
+        std::array<uint8, Size * 4> raw;
+        std::array<OamData, Size>   data;
+    };
+
 
     struct InternalRegisters {
         PpuAddress v{};
@@ -225,7 +231,7 @@ public:
         public:
             TilePattern(const uint8 bitPlaneLo, const uint8 bitPlaneHi) : m_bitPlaneLo(bitPlaneLo), m_bitPlaneHi(bitPlaneHi) {}
 
-            uint8 paletteIndex(const uint8 dot) const
+            [[nodiscard]] uint8 paletteIndex(const uint8 dot) const
             {
                 const uint8 bit = 7 - dot;
                 return ((m_bitPlaneHi >> bit & 1) << 1) | ((m_bitPlaneLo >> bit) & 1);
@@ -243,7 +249,7 @@ public:
 
         [[nodiscard]] static TilePattern makeTile(const uint8 bitPlaneLo, const uint8 bitPlaneHi)
         {
-            return TilePattern(bitPlaneLo, bitPlaneHi);
+            return { bitPlaneLo, bitPlaneHi };
         }
     };
 
@@ -283,8 +289,11 @@ private:
     inline void  writePaletteData(uint8 index, uint8 data);
     inline uint8 readDataByte();
     inline uint8 readPaletteData(uint8 index);
-    inline void  updateScanline();
-    inline void  advanceScanline();
+    inline void  processSpriteEvaluation();
+
+    void                updateScanline();
+    void                advanceScanline();
+    [[nodiscard]] uint8 evaluateSpritePaletteIndex(uint16 dot, bool isBgSolid);
 
 private:
     using InternalFrameBuffer = std::array<std::array<PaletteIndex, kFrameScanlineWidth>, kFrameScanlineMax>;
@@ -299,9 +308,10 @@ private:
     PpuMask   m_ppuMask{};
     PpuStatus m_ppuStatus{};
     uint8     m_oamAddr{};
-    Oam       m_oam{};
 
     InternalRegisters     m_registers{};
+    Oam<64>               m_oam{};
+    Oam<8>                m_oamBuffer{};
     std::array<uint8, 32> m_paletteData{};
 
     uint8  m_dataBuffer{};
@@ -309,6 +319,7 @@ private:
     uint16 m_dotCycle{};
     uint16 m_scanline{};
     uint64 m_cycles{};
+    bool   m_canSpriteZeroTrigger{};
 
     uint8 m_nameTableByte{};
     uint8 m_patternTableHiByte{};

@@ -8,6 +8,8 @@ using namespace NESEmu;
 
 constexpr uint16 kPpuCtrl   = 0x2000;
 constexpr uint16 kPpuMask   = 0x2001;
+constexpr uint16 kOamAddr   = 0x2003;
+constexpr uint16 kOamData   = 0x2004;
 constexpr uint16 kPpuScroll = 0x2005;
 constexpr uint16 kPpuAddr   = 0x2006;
 
@@ -1303,5 +1305,105 @@ TEST_CASE("NAMETABLES")
         CHECK_EQ(ppuBus.read(0x2000), 0x11); // top vs bottom are independent
         CHECK_EQ(ppuBus.read(0x2800), 0x22);
     }
+}
+
+TEST_CASE("Sprite evaluation (every scanline)")
+{
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines;
+    Ppu            ppu(ppuBus, interruptLines);
+    ppu.startup();
+
+    SUBCASE("secondary OAM buffer is cleared to $FF") {}
+
+    SUBCASE("in-range selection (8x8)") {
+        // OAM Y holds (top scanline - 1): a sprite at Y is visible on scanlines Y+1 .. Y+height.
+        // row-within-sprite for scanline S is (S - Y - 1), in range iff 0 <= row < height.
+        SUBCASE("sprite with Y=0 is out of range on scanline 0") {}
+        SUBCASE("sprite with Y=0 is in range on scanline 1 (row 0)") {}
+        SUBCASE("sprite is in range on its bottom row (row == height-1)") {}
+        SUBCASE("sprite one past its bottom row (row == height) is out of range") {}
+        SUBCASE("sprite with Y >= 239 never appears on a visible scanline") {}
+    }
+
+    SUBCASE("in-range selection respects sprite height") {
+        SUBCASE("8x16 sprite is in range for rows 0-15") {}
+        SUBCASE("8x16 sprite one past row 15 is out of range") {}
+    }
+
+    SUBCASE("eligible sprites are copied to secondary OAM buffer") {
+        SUBCASE("a single in-range sprite is copied with all four bytes intact") {}
+        SUBCASE("out-of-range sprites are skipped") {}
+        SUBCASE("copy preserves primary OAM order") {}
+    }
+
+    SUBCASE("eight-sprite cap") {
+        SUBCASE("up to 8 in-range sprites are copied") {}
+        SUBCASE("a 9th in-range sprite on the same scanline is not copied") {}
+        // Defer: accurate overflow flag has buggy hardware behavior; first pass can set it naively.
+        //SUBCASE("sprite overflow flag is set when a 9th in-range sprite is found") {}
+    }
+}
+
+TEST_CASE("Sprite pattern fetching")
+{
+    SUBCASE("row selection") {
+        SUBCASE("fetches the pattern row matching (scanline - Y - 1)") {}
+        SUBCASE("8x16 sprite tile index bit 0 selects the pattern table half") {}
+        SUBCASE("8x16 sprite spans two tiles across rows 0-7 and 8-15") {}
+    }
+
+    SUBCASE("vertical flip (attribute bit 7) reverses row before fetch") {
+        SUBCASE("8x8: row r reads pattern row (height-1 - r)") {}
+        SUBCASE("8x16: vertical flip also swaps the top and bottom tile") {}
+    }
+
+    SUBCASE("horizontal flip (attribute bit 6) reverses pixel order within the row") {}
+}
+
+TEST_CASE("Sprite/background priority muxing")
+{
+    // Priority mux per dot (BG and SP are 2-bit; 0 = transparent; attr bit 5: 0 = sprite in front):
+    //   BG=0, SP=0           -> backdrop
+    //   BG=0, SP!=0          -> sprite
+    //   BG!=0, SP=0          -> background
+    //   BG!=0, SP!=0, front  -> sprite
+    //   BG!=0, SP!=0, behind -> background
+    SUBCASE("transparent background, transparent sprite -> backdrop") {}
+    SUBCASE("transparent background, opaque sprite -> sprite pixel") {}
+    SUBCASE("opaque background, transparent sprite -> background pixel") {}
+    SUBCASE("opaque background, opaque front-priority sprite -> sprite pixel") {}
+    SUBCASE("opaque background, opaque behind-priority sprite -> background pixel") {}
+
+    SUBCASE("sprite palette select uses attribute bits 0-1 with sprite palettes ($3F10-$3F1F)") {}
+
+    SUBCASE("sprite-vs-sprite priority") {
+        SUBCASE("lower OAM index wins where two opaque sprites overlap") {}
+        SUBCASE("a higher-index sprite shows through a lower-index transparent pixel") {}
+    }
+
+    SUBCASE("left-column clipping") {
+        SUBCASE("sprites hidden in leftmost 8 pixels when sprite column mask is off") {}
+        SUBCASE("sprites shown in leftmost 8 pixels when sprite column mask is on") {}
+    }
+}
+
+TEST_CASE("Sprite 0 hit")
+{
+    SUBCASE("set when sprite 0 opaque pixel overlaps an opaque background pixel") {}
+    SUBCASE("set regardless of sprite 0 priority (front or behind)") {}
+
+    SUBCASE("not set when") {
+        SUBCASE("sprite 0 pixel is transparent") {}
+        SUBCASE("background pixel is transparent") {}
+        SUBCASE("background rendering is disabled") {}
+        SUBCASE("sprite rendering is disabled") {}
+        SUBCASE("the overlap occurs at x = 255") {}
+        SUBCASE("the overlap is in x 0-7 and a left-column mask is off") {}
+    }
+
+    SUBCASE("a hit from a later overlapping sprite does not suppress the sprite 0 hit") {}
+    SUBCASE("flag is cleared on the pre-render scanline") {}
 }
 }
