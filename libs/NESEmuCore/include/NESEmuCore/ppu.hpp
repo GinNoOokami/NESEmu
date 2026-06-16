@@ -31,11 +31,6 @@ class PpuBus;
 struct InterruptLines;
 
 class Ppu {
-    static constexpr int kFrameVisibleStart    = 0;
-    static constexpr int kFramePostRenderStart = 240;
-    static constexpr int kFrameVBlankStart     = 241;
-    static constexpr int kFramePreRenderStart  = 261;
-
     static constexpr uint16 ADDRESS_MASK        = 0x3FFF;
     static constexpr uint8  ADDRESS_MIRROR_MASK = 0b0000'0111;
 
@@ -256,6 +251,11 @@ private:
     };*/
 
 public:
+    static constexpr int kFrameVisibleStart    = 0;
+    static constexpr int kFramePostRenderStart = 240;
+    static constexpr int kFrameVBlankStart     = 241;
+    static constexpr int kFramePreRenderStart  = 261;
+
     static constexpr int kFrameScanlineWidth = 341;
     static constexpr int kFrameScanlineMax   = 262;
     static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;

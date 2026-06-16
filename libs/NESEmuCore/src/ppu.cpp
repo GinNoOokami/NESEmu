@@ -198,10 +198,14 @@ void Ppu::updateScanline()
                 // * insert value into the buffer array at the current scanline dot
                 const auto tileData = PatternTable::makeTile(m_patternTableLoByte, m_patternTableHiByte);
                 for (uint8 i = 0; i < 8; ++i) {
-                    const uint16 dot     = m_dotCycle - 8 + i;
-                    const uint8  bgColor = tileData.paletteIndex(i);
+                    const uint16 dot          = m_dotCycle - 8 + i;
+                    uint8        bgColor      = 0;
+                    uint8        paletteIndex = 0;
 
-                    uint8 paletteIndex = (bgColor == 0) ? 0 : (paletteSelect << 2 | bgColor);
+                    if (m_ppuMask.backgroundEnabled()) {
+                        bgColor      = tileData.paletteIndex(i);
+                        paletteIndex = (bgColor == 0) ? 0 : (paletteSelect << 2 | bgColor);
+                    }
 
                     if (m_ppuMask.spriteEnabled()) {
                         bool  priority           = false;
@@ -286,7 +290,7 @@ uint8 Ppu::evaluateSpritePaletteIndex(const uint16 dot, const bool isBgSolid, bo
                 priority           = attributes & 0x20;
             }
 
-            if (j == 0 && m_canSpriteZeroTrigger && isBgSolid && spriteColor > 0) {
+            if (j == 0 && m_canSpriteZeroTrigger && isBgSolid && spriteColor > 0 && dot != 255) {
                 m_ppuStatus.spriteZeroHit(true);
             }
         }

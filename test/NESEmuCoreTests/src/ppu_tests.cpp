@@ -1541,6 +1541,13 @@ static uint8 renderScanlinePixel(Ppu& ppu, const int scanline, const uint8 x)
     return ppu.frameBuffer()[scanline * kScreenDotWidth + x];
 }
 
+// Renders through the end of the given scanline and reports whether the sprite-0-hit flag is set.
+static bool renderAndReadSpriteZeroHit(Ppu& ppu, const int scanline)
+{
+    ppu.executeUntil(static_cast<uint64>(scanline) * Ppu::kFrameScanlineWidth + 257);
+    return ppu.ppuStatus().spriteZeroHit();
+}
+
 TEST_CASE("Sprite pattern fetching")
 {
     // A sprite with OAM Y=y occupies display lines y+1 .. y+8 (rows 0..7); the fetched
@@ -1715,19 +1722,120 @@ TEST_CASE("Sprite/background priority muxing")
 
 TEST_CASE("Sprite 0 hit")
 {
-    SUBCASE("set when sprite 0 opaque pixel overlaps an opaque background pixel") {}
-    SUBCASE("set regardless of sprite 0 priority (front or behind)") {}
+    // Sprite 0 hit latches when sprite 0's opaque pixel coincides with an opaque background pixel,
+    // with both layers rendering enabled. The scene puts an opaque background everywhere and an
+    // opaque sprite 0; subcases knock out one precondition at a time. Sprite is in range y+1..y+8.
+    constexpr uint8 y       = 100;
+    constexpr uint8 spriteX = 16;
 
-    SUBCASE("not set when") {
-        SUBCASE("sprite 0 pixel is transparent") {}
-        SUBCASE("background pixel is transparent") {}
-        SUBCASE("background rendering is disabled") {}
-        SUBCASE("sprite rendering is disabled") {}
-        SUBCASE("the overlap occurs at x = 255") {}
-        SUBCASE("the overlap is in x 0-7 and a left-column mask is off") {}
+    SpriteChrCartridge chr;
+    CiRam              ciram;
+    PpuBus             ppuBus(ciram);
+    InterruptLines     interruptLines;
+    Ppu                ppu(ppuBus, interruptLines);
+    ppuBus.attachCartridge(chr);
+
+    SUBCASE("set when sprite 0 opaque pixel overlaps an opaque background pixel") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX);
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y)); // before the sprite's rows
+        CHECK(renderAndReadSpriteZeroHit(ppu, y + 2)); // overlap line -> hit
     }
 
-    SUBCASE("a hit from a later overlapping sprite does not suppress the sprite 0 hit") {}
-    SUBCASE("flag is cleared on the pre-render scanline") {}
+    SUBCASE("set regardless of sprite 0 priority (behind background)") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        writeSprite(ppu, 0, y, 0, 0x20, spriteX); // behind-priority still triggers the hit
+
+        CHECK(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("not set when sprite 0 pixel is transparent") {
+        setOpaqueBackground(chr);
+        setupSpriteScene(ppu); // sprite tile left transparent
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX);
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("not set when background pixel is transparent") {
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu); // background tile left transparent
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX);
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("not set when sprite rendering is disabled") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        ppu.onCpuWrite(kPpuMask, 0x08); // background only
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX);
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("not set when background rendering is disabled") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        ppu.onCpuWrite(kPpuMask, 0x10); // sprites only
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX);
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("not set when the overlap occurs at x = 255") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        writeSprite(ppu, 0, y, 0, 0x00, 255); // only column 255 is on-screen; no hit there
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("a hit from a later overlapping sprite does not suppress the sprite 0 hit") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX); // sprite 0 overlaps
+        writeSprite(ppu, 1, y, 0, 0x00, spriteX); // sprite 1 overlaps the same pixel
+
+        CHECK(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("hit is tied to primary OAM index 0, not internal-OAM slot 0") {
+        // Sprite 0 is parked off-screen, so it is out of range and never copied. The first
+        // in-range sprite is primary index 1, which evaluation copies into internal-OAM slot 0.
+        // A naive "slot 0 triggers the hit" implementation would fire here; hardware keys the hit
+        // to primary index 0 specifically, so it must stay clear. Guards against an optimization
+        // that conflates the first output unit with primary sprite 0.
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        // sprite 0 left parked at Y=$FF; sprite 1 is the first in-range sprite -> internal slot 0.
+        writeSprite(ppu, 1, y, 0, 0x00, spriteX);
+
+        CHECK_FALSE(renderAndReadSpriteZeroHit(ppu, y + 2));
+    }
+
+    SUBCASE("flag is cleared on the pre-render scanline") {
+        setOpaqueBackground(chr);
+        setOpaqueSpriteTile(chr);
+        setupSpriteScene(ppu);
+        writeSprite(ppu, 0, y, 0, 0x00, spriteX);
+
+        CHECK(renderAndReadSpriteZeroHit(ppu, y + 2)); // latched mid-frame
+        ppu.executeUntil(Ppu::kFramePreRenderStart * Ppu::kFrameScanlineWidth + 2); // into the pre-render scanline (261)
+        CHECK_FALSE(ppu.ppuStatus().spriteZeroHit()); // cleared at pre-render
+    }
+
+    // Deferred (left-column sprite clipping not yet implemented; see muxing test):
+    //   SUBCASE("not set when the overlap is in x 0-7 and a left-column mask is off")
 }
 }
