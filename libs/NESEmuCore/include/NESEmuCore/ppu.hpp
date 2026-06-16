@@ -213,7 +213,6 @@ class Ppu {
         std::array<OamData, Size>   data;
     };
 
-
     struct InternalRegisters {
         PpuAddress v{};
         PpuAddress t{};
@@ -222,10 +221,6 @@ class Ppu {
     };
 
 public:
-    static constexpr int kFrameScanlineWidth = 341;
-    static constexpr int kFrameScanlineMax   = 262;
-    static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
-
     struct PatternTable {
         class TilePattern {
         public:
@@ -253,6 +248,21 @@ public:
         }
     };
 
+private:
+    /*
+    struct SpriteBuffer {
+        PatternTable::TilePattern patternSR;
+        uint8                     x;
+    };*/
+
+public:
+    static constexpr int kFrameScanlineWidth = 341;
+    static constexpr int kFrameScanlineMax   = 262;
+    static constexpr int kPpuCyclesPerFrame  = kFrameScanlineWidth * kFrameScanlineMax;
+
+    using PrimaryOam  = Oam<64>;
+    using InternalOam = Oam<8>;
+
     explicit Ppu(PpuBus& ppuBus, InterruptLines& interruptLines);
 
     void startup();
@@ -260,13 +270,13 @@ public:
 
     void executeUntil(uint64 targetPpuCycles);
 
-    [[nodiscard]] const PpuCtrl&   ppuCtrl() const { return m_ppuCtrl; }
-    [[nodiscard]] const PpuMask&   ppuMask() const { return m_ppuMask; }
-    [[nodiscard]] const PpuStatus& ppuStatus() const { return m_ppuStatus; }
-
-    [[nodiscard]] const FrameBuffer& frameBuffer() const { return m_visibleFrameBuffer; }
-
+    [[nodiscard]] const PpuCtrl&           ppuCtrl() const { return m_ppuCtrl; }
+    [[nodiscard]] const PpuMask&           ppuMask() const { return m_ppuMask; }
+    [[nodiscard]] const PpuStatus&         ppuStatus() const { return m_ppuStatus; }
+    [[nodiscard]] const FrameBuffer&       frameBuffer() const { return m_visibleFrameBuffer; }
     [[nodiscard]] const InternalRegisters& internalRegisters() const { return m_registers; }
+    [[nodiscard]] const PrimaryOam&        oam() const { return m_oam; }
+    [[nodiscard]] const InternalOam&       oamBuffer() const { return m_oamBuffer; }
 
     [[nodiscard]] uint8 onCpuRead(uint16 address);
     void                onCpuWrite(uint16 address, uint8 data);
@@ -293,7 +303,7 @@ private:
 
     void                updateScanline();
     void                advanceScanline();
-    [[nodiscard]] uint8 evaluateSpritePaletteIndex(uint16 dot, bool isBgSolid);
+    [[nodiscard]] uint8 evaluateSpritePaletteIndex(uint16 dot, bool isBgSolid, bool& priority);
 
 private:
     using InternalFrameBuffer = std::array<std::array<PaletteIndex, kFrameScanlineWidth>, kFrameScanlineMax>;
@@ -310,8 +320,8 @@ private:
     uint8     m_oamAddr{};
 
     InternalRegisters     m_registers{};
-    Oam<64>               m_oam{};
-    Oam<8>                m_oamBuffer{};
+    PrimaryOam            m_oam{};
+    InternalOam           m_oamBuffer{};
     std::array<uint8, 32> m_paletteData{};
 
     uint8  m_dataBuffer{};

@@ -204,9 +204,12 @@ void Ppu::updateScanline()
                     uint8 paletteIndex = (bgColor == 0) ? 0 : (paletteSelect << 2 | bgColor);
 
                     if (m_ppuMask.spriteEnabled()) {
-                        uint8 spritePaletteIndex = evaluateSpritePaletteIndex(dot, bgColor > 0);
-                        if (spritePaletteIndex & 0x03) {
-                            paletteIndex = spritePaletteIndex;
+                        bool  priority           = false;
+                        uint8 spritePaletteIndex = evaluateSpritePaletteIndex(dot, bgColor > 0, priority);
+                        bool  bgPriority         = priority && bgColor > 0;
+                        bool  drawSpriteDot      = (!priority || !bgColor) && !bgPriority;
+                        if (drawSpriteDot && spritePaletteIndex & 0x03) {
+                            paletteIndex = spritePaletteIndex & 0x1F;
                         }
                     }
 
@@ -252,7 +255,7 @@ void Ppu::advanceScanline()
     processSpriteEvaluation();
 }
 
-uint8 Ppu::evaluateSpritePaletteIndex(const uint16 dot, const bool isBgSolid)
+uint8 Ppu::evaluateSpritePaletteIndex(const uint16 dot, const bool isBgSolid, bool& priority)
 {
     uint8 spriteColor        = 0;
     uint8 spritePaletteIndex = 0;
@@ -260,8 +263,8 @@ uint8 Ppu::evaluateSpritePaletteIndex(const uint16 dot, const bool isBgSolid)
     for (int j = 7; j >= 0; --j) {
         const auto& [y, tile, attributes, x] = m_oamBuffer.data[j];
         if (y != 0xFF && dot >= x && dot < x + 8) {
-            uint8 row = m_scanline - y;
-            uint8 col = dot - x & 0x7;
+            uint8 row = (m_scanline - y - 1) & 0x7;
+            uint8 col = (dot - x) & 0x7;
 
             if (attributes & 0x80) {
                 row = 7 - row;
@@ -275,8 +278,13 @@ uint8 Ppu::evaluateSpritePaletteIndex(const uint16 dot, const bool isBgSolid)
             const auto spritePatternAddressHi = PatternTable::address(m_ppuCtrl.spritePatternTableAddress(), true, tile, row);
 
             const auto spritePattern = PatternTable::makeTile(m_bus.read(spritePatternAddressLo), m_bus.read(spritePatternAddressHi));
-            spriteColor              = spritePattern.paletteIndex(col);
-            spritePaletteIndex       = attributes & 0x03;
+
+            // Only set the sprite color if it's not transparent
+            if (const auto color = spritePattern.paletteIndex(col)) {
+                spriteColor        = color;
+                spritePaletteIndex = attributes & 0x03;
+                priority           = attributes & 0x20;
+            }
 
             if (j == 0 && m_canSpriteZeroTrigger && isBgSolid && spriteColor > 0) {
                 m_ppuStatus.spriteZeroHit(true);
@@ -300,13 +308,14 @@ void Ppu::processSpriteEvaluation()
         int count = 0;
         for (int i = 0; i < 64; ++i) {
             const auto& spriteData = m_oam.data[i];
-            if (spriteData.y != 0xFF && m_scanline >= spriteData.y && m_scanline < spriteData.y + 8) {
-                m_oamBuffer.data[count++] = spriteData;
-                if (i == 0) { m_canSpriteZeroTrigger = true; }
-                if (count > 8) {
+            if (spriteData.y != 0xFF && m_scanline > spriteData.y && m_scanline <= spriteData.y + 8) {
+                if (count == 8) {
                     // TODO: Set overflow flag
                     break;
                 }
+
+                m_oamBuffer.data[count++] = spriteData;
+                if (i == 0) { m_canSpriteZeroTrigger = true; }
             }
         }
     }
