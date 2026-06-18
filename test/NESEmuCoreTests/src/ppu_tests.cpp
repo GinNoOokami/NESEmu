@@ -1345,6 +1345,16 @@ TEST_CASE("Background fine X scrolling")
         }
     }
 
+    SUBCASE("a mid-screen tile renders 1:1 under no scroll") {
+        // Guards the visible-line reload path. The tile-0/1 cases above only exercise the two tiles
+        // loaded by the end-of-previous-scanline preload; tile 2 onward is the first fetched by the
+        // reload during the visible line. With no scroll, tile T must land exactly at source pixels
+        // [8T, 8T+7], so a marker at tile 4, column 0 (source 32) must render at screen x = 32.
+        CHECK_EQ(renderScrolledMarkerPixel(0, 0, /*tile*/ 4, /*col*/ 0, 32), kBgMarkerColor);
+        CHECK_EQ(renderScrolledMarkerPixel(0, 0, /*tile*/ 4, /*col*/ 0, 31), kGlobalBackdropColor); // not shifted left
+        CHECK_EQ(renderScrolledMarkerPixel(0, 0, /*tile*/ 4, /*col*/ 0, 33), kGlobalBackdropColor); // not shifted right
+    }
+
     SUBCASE("coarse X selects the first tile and fine X offsets within it") {
         // coarseX = 5 makes nametable tile 5 the leftmost on-screen tile; fineX = 3 shifts 3 pixels
         // into it. Source pixel 45 (tile 5, column 5) lands at screen x = 45 - (5*8 + 3) = 2.

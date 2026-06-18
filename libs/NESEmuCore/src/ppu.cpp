@@ -187,7 +187,6 @@ void Ppu::updateScanline()
 {
     if (m_scanline < 240 || m_scanline == kFramePreRenderStart) {
         if (m_dotCycle > 0 && m_dotCycle < 257) {
-
             const uint16 dot          = m_dotCycle - 1;
             uint8        bgColor      = 0;
             uint8        paletteIndex = 0;
@@ -197,6 +196,7 @@ void Ppu::updateScanline()
 
             uint16 attributeHi = (m_attributeShifterHi << 1) | m_attributeLatchHi;
             uint16 attributeLo = (m_attributeShifterLo << 1) | m_attributeLatchLo;
+
             if (m_ppuMask.backgroundEnabled()) {
                 const uint8 hi = (patternHi >> (16 - m_registers.x)) & 1;
                 const uint8 lo = (patternLo >> (16 - m_registers.x)) & 1;
@@ -219,6 +219,8 @@ void Ppu::updateScanline()
                 }
             }
 
+            m_internalFrameBuffer[m_scanline][dot] = m_paletteData[paletteIndex];
+
             m_patternShifterHi = patternHi;
             m_patternShifterLo = patternLo;
 
@@ -229,8 +231,6 @@ void Ppu::updateScanline()
             if ((m_dotCycle & 7) == 0) {
                 reloadShiftRegisters();
             }
-
-            m_internalFrameBuffer[m_scanline][dot] = m_paletteData[paletteIndex];
 
             if (m_dotCycle == 256) {
                 m_registers.v.incFineY();
