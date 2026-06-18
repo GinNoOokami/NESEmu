@@ -36,6 +36,19 @@ void Ppu::executeUntil(const uint64 targetPpuCycles)
     }
 }
 
+void Ppu::preloadShiftRegisters()
+{
+    m_patternShifterHi <<= 8;
+    m_patternShifterLo <<= 8;
+
+    for (int i = 0; i < 8; ++i) {
+        m_attributeShifterHi = (m_attributeShifterHi << 1) | m_attributeLatchHi;
+        m_attributeShifterLo = (m_attributeShifterLo << 1) | m_attributeLatchLo;
+    }
+
+    reloadShiftRegisters();
+}
+
 uint8 Ppu::onCpuRead(const uint16 address)
 {
     switch (static_cast<PpuRegisters>(address & ADDRESS_MIRROR_MASK)) {
@@ -174,53 +187,50 @@ void Ppu::updateScanline()
 {
     if (m_scanline < 240 || m_scanline == kFramePreRenderStart) {
         if (m_dotCycle > 0 && m_dotCycle < 257) {
-            // This isn't cycle accurate yet; we wait until the end of the tile and draw it all at once
-            if ((m_dotCycle & 7) == 0) {
-                // Look up the nametable entry
-                m_nameTableByte = m_bus.read(m_registers.v.nametableAddress());
 
-                // Look up attribute table entry
-                m_attributeTableByte = m_bus.read(m_registers.v.attributeTableAddress());
+            const uint16 dot          = m_dotCycle - 1;
+            uint8        bgColor      = 0;
+            uint8        paletteIndex = 0;
 
-                // Look up pattern lo and hi bytes
-                const auto patternAddressLo = PatternTable::address(m_ppuCtrl.backgroundPatternTableAddress(), false, m_nameTableByte, m_registers.v.fineY());
-                const auto patternAddressHi = PatternTable::address(m_ppuCtrl.backgroundPatternTableAddress(), true, m_nameTableByte, m_registers.v.fineY());
+            uint32 patternHi = m_patternShifterHi << 1;
+            uint32 patternLo = m_patternShifterLo << 1;
 
-                m_patternTableLoByte = m_bus.read(patternAddressLo);
-                m_patternTableHiByte = m_bus.read(patternAddressHi);
+            uint16 attributeHi = (m_attributeShifterHi << 1) | m_attributeLatchHi;
+            uint16 attributeLo = (m_attributeShifterLo << 1) | m_attributeLatchLo;
+            if (m_ppuMask.backgroundEnabled()) {
+                const uint8 hi = (patternHi >> (16 - m_registers.x)) & 1;
+                const uint8 lo = (patternLo >> (16 - m_registers.x)) & 1;
 
-                // Fetch the current palette table based on the attribute table entry
-                const auto paletteSelect = selectPaletteFromAttribute(m_attributeTableByte, m_registers.v.coarseX(), m_registers.v.coarseY());
+                const bool  paletteHi     = (attributeHi >> (8 - m_registers.x)) & 1;
+                const bool  paletteLo     = (attributeLo >> (8 - m_registers.x)) & 1;
+                const uint8 paletteSelect = paletteHi << 1 | paletteLo;
 
-                // for each pixel in the tile:
-                // * combine the pattern bits to form the palette index
-                // * look up the final palette index
-                // * insert value into the buffer array at the current scanline dot
-                const auto tileData = PatternTable::makeTile(m_patternTableLoByte, m_patternTableHiByte);
-                for (uint8 i = 0; i < 8; ++i) {
-                    const uint16 dot          = m_dotCycle - 8 + i;
-                    uint8        bgColor      = 0;
-                    uint8        paletteIndex = 0;
-
-                    if (m_ppuMask.backgroundEnabled()) {
-                        bgColor      = tileData.paletteIndex(i);
-                        paletteIndex = (bgColor == 0) ? 0 : (paletteSelect << 2 | bgColor);
-                    }
-
-                    if (m_ppuMask.spriteEnabled()) {
-                        bool  priority           = false;
-                        uint8 spritePaletteIndex = evaluateSpritePaletteIndex(dot, bgColor > 0, priority);
-                        bool  bgPriority         = priority && bgColor > 0;
-                        bool  drawSpriteDot      = (!priority || !bgColor) && !bgPriority;
-                        if (drawSpriteDot && spritePaletteIndex & 0x03) {
-                            paletteIndex = spritePaletteIndex & 0x1F;
-                        }
-                    }
-
-                    m_internalFrameBuffer[m_scanline][dot] = m_paletteData[paletteIndex];
-                }
-                m_registers.v.incCoarseX();
+                bgColor      = hi << 1 | lo;
+                paletteIndex = (bgColor == 0) ? 0 : (paletteSelect << 2 | bgColor);
             }
+
+            if (m_ppuMask.spriteEnabled()) {
+                bool  priority           = false;
+                uint8 spritePaletteIndex = evaluateSpritePaletteIndex(dot, bgColor > 0, priority);
+                bool  bgPriority         = priority && bgColor > 0;
+                bool  drawSpriteDot      = (!priority || !bgColor) && !bgPriority;
+                if (drawSpriteDot && spritePaletteIndex & 0x03) {
+                    paletteIndex = spritePaletteIndex & 0x1F;
+                }
+            }
+
+            m_patternShifterHi = patternHi;
+            m_patternShifterLo = patternLo;
+
+            m_attributeShifterHi = attributeHi;
+            m_attributeShifterLo = attributeLo;
+
+            // Reload the shift registers every 8 dots
+            if ((m_dotCycle & 7) == 0) {
+                reloadShiftRegisters();
+            }
+
+            m_internalFrameBuffer[m_scanline][dot] = m_paletteData[paletteIndex];
 
             if (m_dotCycle == 256) {
                 m_registers.v.incFineY();
@@ -230,12 +240,19 @@ void Ppu::updateScanline()
         if (m_dotCycle == 257) {
             m_registers.v.horizontalBits(m_registers.t);
         }
+
+        // Preload the first two tile patterns for the next scanline
+        if (m_dotCycle == 328 || m_dotCycle == 336) {
+            preloadShiftRegisters();
+        }
+
         if (m_scanline == kFramePreRenderStart) {
             if (m_dotCycle >= 280 && m_dotCycle <= 304) {
                 m_registers.v.verticalBits(m_registers.t);
             }
         }
     }
+
 }
 
 void Ppu::advanceScanline()
@@ -323,6 +340,26 @@ void Ppu::processSpriteEvaluation()
             }
         }
     }
+}
+
+void Ppu::reloadShiftRegisters()
+{
+    const auto row                   = m_registers.v.fineY();
+    const auto bgPatternTableAddress = m_ppuCtrl.backgroundPatternTableAddress();
+    const auto nametableIndex        = m_bus.read(m_registers.v.nametableAddress());
+    const auto patternAddressLo      = PatternTable::address(bgPatternTableAddress, false, nametableIndex, row);
+    const auto patternAddressHi      = PatternTable::address(bgPatternTableAddress, true, nametableIndex, row);
+
+    const auto attributeTableByte = m_bus.read(m_registers.v.attributeTableAddress());
+    const auto attribute          = selectPaletteFromAttribute(attributeTableByte, m_registers.v.coarseX(), m_registers.v.coarseY());
+
+    m_patternShifterHi |= m_bus.read(patternAddressHi);
+    m_patternShifterLo |= m_bus.read(patternAddressLo);
+
+    m_attributeLatchHi = (attribute & 0x02) >> 1;
+    m_attributeLatchLo = attribute & 0x01;
+
+    m_registers.v.incCoarseX();
 }
 
 void Ppu::updateVisibleFrameBuffer()

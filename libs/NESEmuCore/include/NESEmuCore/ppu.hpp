@@ -228,8 +228,8 @@ public:
             }
 
         private:
-            uint8 m_bitPlaneHi{};
             uint8 m_bitPlaneLo{};
+            uint8 m_bitPlaneHi{};
         };
 
         [[nodiscard]] static uint16 address(const bool tableSelect, const bool plane, const uint8 tileIndex, const uint8 tileRow)
@@ -270,6 +270,8 @@ public:
 
     void executeUntil(uint64 targetPpuCycles);
 
+    void preloadShiftRegisters();
+
     [[nodiscard]] const PpuCtrl&           ppuCtrl() const { return m_ppuCtrl; }
     [[nodiscard]] const PpuMask&           ppuMask() const { return m_ppuMask; }
     [[nodiscard]] const PpuStatus&         ppuStatus() const { return m_ppuStatus; }
@@ -300,6 +302,7 @@ private:
     inline uint8 readDataByte();
     inline uint8 readPaletteData(uint8 index);
     inline void  processSpriteEvaluation();
+    inline void  reloadShiftRegisters();
 
     void                updateScanline();
     void                advanceScanline();
@@ -331,10 +334,19 @@ private:
     uint64 m_cycles{};
     bool   m_canSpriteZeroTrigger{};
 
+    // Members related to old, incorrect fetch model
     uint8 m_nameTableByte{};
     uint8 m_patternTableHiByte{};
     uint8 m_patternTableLoByte{};
     uint8 m_attributeTableByte{};
+
+    // Members related to new, more accurate fetch model
+    uint16 m_patternShifterHi{};
+    uint16 m_patternShifterLo{};
+    uint8  m_attributeShifterHi{};
+    uint8  m_attributeShifterLo{};
+    bool   m_attributeLatchHi{};
+    bool   m_attributeLatchLo{};
 
     InternalFrameBuffer m_internalFrameBuffer{};
     FrameBuffer         m_visibleFrameBuffer{};

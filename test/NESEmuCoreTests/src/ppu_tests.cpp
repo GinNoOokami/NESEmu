@@ -17,6 +17,33 @@ constexpr uint16 kPpuData   = 0x2007;
 // $3F00 universal background marker used by the sprite render-path tests.
 constexpr uint8 kGlobalBackdropColor = 0x0D;
 
+// Writes one sprite (4 bytes) into primary OAM at the given sprite index via OAMADDR/OAMDATA.
+static void writeSprite(Ppu& ppu, const uint8 index, const uint8 y, const uint8 tile, const uint8 attr, const uint8 x)
+{
+    ppu.onCpuWrite(kOamAddr, static_cast<uint8>(index * 4));
+    ppu.onCpuWrite(kOamData, y);
+    ppu.onCpuWrite(kOamData, tile);
+    ppu.onCpuWrite(kOamData, attr);
+    ppu.onCpuWrite(kOamData, x);
+}
+
+// Parks every sprite off-screen (Y = $FF) so only sprites written afterward are in range.
+static void parkAllSprites(Ppu& ppu)
+{
+    ppu.onCpuWrite(kOamAddr, 0x00);
+    for (int i = 0; i < 256; ++i) {
+        ppu.onCpuWrite(kOamData, 0xFF);
+    }
+}
+
+// Runs the PPU until sprite evaluation for the given display scanline has completed.
+// Evaluation for line N runs at master cycle N*341 (the transition into line N), so any
+// target in (N*341, (N+1)*341] observes the result; N must be >= 1 in the first frame.
+static void evaluateForScanline(Ppu& ppu, const int scanline)
+{
+    ppu.executeUntil(static_cast<uint64>(scanline) * Ppu::kFrameScanlineWidth + 1);
+}
+
 TEST_SUITE("PPU Tests") {
 TEST_CASE("PPUCTRL")
 {
@@ -726,7 +753,7 @@ TEST_CASE("Render timing")
             uint64 cycles = 81755; // The number of cycles just before the rollover: 239 * 341 + 256
             ppu.executeUntil(cycles);
 
-            CHECK_EQ(ppu.internalRegisters().v.nametableIndex(), 0);
+            CHECK_EQ(ppu.internalRegisters().v.nametableIndex() & 0x2, 0);
 
             ppu.executeUntil(++cycles);
 
@@ -1112,12 +1139,261 @@ TEST_CASE("Background pixel composition")
 
                 // Enable background rendering and advance far enough to fetch+compose tile 0 of scanline 0
                 ppu.onCpuWrite(ppuMask, 0x08);
+
+                // Preload the shift registers for the first two tiles without needing to wait a whole frame
+                ppu.preloadShiftRegisters();
+                ppu.preloadShiftRegisters();
+
                 ppu.executeUntil(9);
                 ppu.updateVisibleFrameBuffer();
 
                 CHECK_EQ(ppu.frameBuffer()[0], c.leftPixel);
             }
         }
+    }
+}
+
+// --- Background fine-X scrolling -------------------------------------------------------------
+//
+// These exercise horizontal fine-X scroll, which the tile-batched render path does not yet model.
+// They are written against the hardware shift-register behavior and are expected to FAIL until the
+// per-pixel background pipeline is in place: two 16-bit pattern shifters (current tile in the low
+// byte, the prefetched next tile in the high byte) tapped by a fine-X mux, with the next tile
+// fetched one tile ahead so a boundary crossing always has valid data on both sides.
+//
+// Model under test: with coarse-X = cx and fine-X = fx, screen pixel p shows nametable source pixel
+// (cx*8 + fx + p). A marker -- a single opaque background column at absolute source pixel S --
+// therefore lands at screen x = S - (cx*8 + fx). When fx > 0, source pixels belonging to the *next*
+// tile slide left of the 8-pixel boundary, which can only be drawn if that tile was prefetched.
+// See https://www.nesdev.org/wiki/PPU_rendering#Cycles_1-256
+
+// Serves one configurable marker tile (background pattern half 0): the chosen tile index renders a
+// single column as color 1, every other column/tile transparent. The same plane bytes are returned
+// for every row, so the rendered color is independent of fine/coarse Y -- vertical scroll is moot.
+struct BgMarkerCartridge {
+    uint8 tile{};
+    uint8 planeLo{};
+    uint8 planeHi{};
+
+    [[nodiscard]] uint8 onPpuRead(const uint16 addr) const
+    {
+        if (addr >= 0x1000) // only background pattern half 0 is populated
+            return 0;
+        if (((addr >> 4) & 0xFF) != tile)
+            return 0;
+        return (addr & 0x8) ? planeHi : planeLo; // identical byte for every row of the tile
+    }
+
+    static void               onPpuWrite(uint16, uint8) {}
+    [[nodiscard]] static bool isCiRamEnabled() { return true; }
+    [[nodiscard]] static bool isHorizontalMirrored() { return false; }
+};
+
+constexpr uint8 kBgMarkerColor  = 0x31; // $3F01: background palette 0, color 1
+constexpr int   kScrollTestLine = 100; // arbitrary mid-frame visible line
+
+// Builds a fresh background-only scene with a marker in tile `markerTile` at in-tile column
+// `markerCol`, applies (coarseX, fineX) scroll via $2005, renders line `kScrollTestLine` of the
+// first frame, and returns the composed pixel at screen position x.
+//
+// Only horizontal scroll is under test, and v's horizontal bits (coarseX + horizontal nametable)
+// are reloaded from t at dot 257 of every visible scanline -- so a scroll written before frame 0
+// takes effect immediately, with no need to wait a frame for a vertical t->v latch. The marker tile
+// renders an identical row for every fineY, so v's vertical drift across the frame is irrelevant.
+// Every nametable cell (all four pages) is set to tile index (addr & 0x1F) = its coarseX, so the
+// fetched tile equals the fetch's coarseX no matter which page coarseX-wrap lands v on mid-scanline.
+static uint8 renderScrolledMarkerPixel(const uint8 coarseX, const uint8 fineX, const uint8 markerTile, const uint8 markerCol, const uint8 x)
+{
+    BgMarkerCartridge chr;
+    chr.tile    = markerTile;
+    chr.planeLo = static_cast<uint8>(1u << (7 - markerCol)); // color 1 at one in-tile column (col 0 = bit 7)
+    chr.planeHi = 0;
+
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines;
+    Ppu            ppu(ppuBus, interruptLines);
+    ppuBus.attachCartridge(chr);
+
+    ppu.startup();
+    parkAllSprites(ppu);
+    ppu.onCpuWrite(kPpuCtrl, 0x00); // background pattern half 0, base nametable $2000
+
+    // Palette: backdrop + a single bright marker for background palette 0, color 1.
+    ppu.onCpuWrite(kPpuAddr, 0x3F);
+    ppu.onCpuWrite(kPpuAddr, 0x00);
+    ppu.onCpuWrite(kPpuData, kGlobalBackdropColor);
+    ppu.onCpuWrite(kPpuData, kBgMarkerColor);
+
+    // Map every nametable cell's tile index to its coarseX (addr & 0x1F), across all four pages, so
+    // tile T renders at source pixels [8T, 8T+7] on every row -- regardless of which nametable page
+    // coarseX-wrap or vertical drift lands v on.
+    for (uint16 addr = 0x2000; addr < 0x3000; ++addr) {
+        ppuBus.write(addr, static_cast<uint8>(addr & 0x1F));
+    }
+    // Clear every attribute byte so the palette select is always 0. These position tests assert the
+    // marker reads back as the palette-0 color, so a stray non-zero select would point the lookup at
+    // an unwritten palette entry and the assertion would break once fine X is implemented. (The
+    // attribute-fine-X subcases below set the attribute table deliberately instead.)
+    for (uint16 page = 0x2000; page < 0x3000; page += 0x400) {
+        for (uint16 off = 0x3C0; off < 0x400; ++off) {
+            ppuBus.write(page + off, 0x00);
+        }
+    }
+
+    ppu.onCpuWrite(kPpuMask, 0x0A); // background enabled + background left-column shown
+
+    // Scroll via $2005: first write carries coarseX (high 5 bits) and fineX (low 3); Y = 0.
+    ppu.onCpuWrite(kPpuScroll, static_cast<uint8>(coarseX << 3 | (fineX & 0x7)));
+    ppu.onCpuWrite(kPpuScroll, 0x00);
+
+    const uint64 target = static_cast<uint64>(kScrollTestLine) * Ppu::kFrameScanlineWidth + 257;
+    ppu.executeUntil(target);
+    ppu.updateVisibleFrameBuffer();
+
+    return ppu.frameBuffer()[kScrollTestLine * kScreenDotWidth + x];
+}
+
+// Select-1 and select-2 markers for the attribute subcases: color 1 under palette select 1 reads
+// $3F05, under select 2 reads $3F09. Distinct values, so a composed pixel reveals which attribute
+// region's palette traveled with it.
+constexpr uint8 kBgAttrMarkerA = 0x25; // palette select 1, color 1 -> $3F05
+constexpr uint8 kBgAttrMarkerB = 0x29; // palette select 2, color 1 -> $3F09
+
+// Like renderScrolledMarkerPixel, but the scene varies the palette *select* with horizontal position
+// instead of holding it at 0: every attribute byte is 0x99 (all four quadrant fields = TL/BL:1,
+// TR/BR:2), so a tile's select is (coarseX bit 1) ? 2 : 1 -- independent of coarseY drift -- and
+// alternates every two tiles (16 source pixels). Source pixel S therefore carries select
+// ((S >> 4) & 1) ? 2 : 1, reading back as kBgAttrMarkerB or kBgAttrMarkerA. This exercises the
+// attribute shift register staying in lockstep with the pattern bits as fine X drags a pixel across
+// a 16-pixel attribute-region boundary -- the analog of the pattern prefetch, for palette select.
+static uint8 renderScrolledAttributePixel(const uint8 coarseX, const uint8 fineX, const uint8 markerTile, const uint8 markerCol, const uint8 x)
+{
+    BgMarkerCartridge chr;
+    chr.tile    = markerTile;
+    chr.planeLo = static_cast<uint8>(1u << (7 - markerCol)); // color 1 at one in-tile column
+    chr.planeHi = 0;
+
+    CiRam          ciram;
+    PpuBus         ppuBus(ciram);
+    InterruptLines interruptLines;
+    Ppu            ppu(ppuBus, interruptLines);
+    ppuBus.attachCartridge(chr);
+
+    ppu.startup();
+    parkAllSprites(ppu);
+    ppu.onCpuWrite(kPpuCtrl, 0x00); // background pattern half 0, base nametable $2000
+
+    // Background palettes $3F00-$3F0F: backdrop, then 0x21..0x2F so select 1 color 1 ($3F05) reads
+    // kBgAttrMarkerA and select 2 color 1 ($3F09) reads kBgAttrMarkerB. Stop at $3F0F so the fill
+    // never touches the $3F10/14/18/1C mirrors of the backdrop slots.
+    ppu.onCpuWrite(kPpuAddr, 0x3F);
+    ppu.onCpuWrite(kPpuAddr, 0x00);
+    ppu.onCpuWrite(kPpuData, kGlobalBackdropColor);
+    for (uint8 i = 1; i < 0x10; ++i) {
+        ppu.onCpuWrite(kPpuData, static_cast<uint8>(0x20 + i));
+    }
+
+    // Nametable tile index = coarseX (all four pages), as in renderScrolledMarkerPixel.
+    for (uint16 addr = 0x2000; addr < 0x3000; ++addr) {
+        ppuBus.write(addr, static_cast<uint8>(addr & 0x1F));
+    }
+    // Attribute bytes = 0x99 across all four pages: left quadrant -> select 1, right -> select 2.
+    for (uint16 page = 0x2000; page < 0x3000; page += 0x400) {
+        for (uint16 off = 0x3C0; off < 0x400; ++off) {
+            ppuBus.write(page + off, 0x99);
+        }
+    }
+
+    ppu.onCpuWrite(kPpuMask, 0x0A); // background enabled + background left-column shown
+
+    ppu.onCpuWrite(kPpuScroll, static_cast<uint8>(coarseX << 3 | (fineX & 0x7)));
+    ppu.onCpuWrite(kPpuScroll, 0x00);
+
+    const uint64 target = static_cast<uint64>(kScrollTestLine) * Ppu::kFrameScanlineWidth + 257;
+    ppu.executeUntil(target);
+    ppu.updateVisibleFrameBuffer();
+
+    return ppu.frameBuffer()[kScrollTestLine * kScreenDotWidth + x];
+}
+
+TEST_CASE("Background fine X scrolling")
+{
+    SUBCASE("fine X slides a pixel left within its tile (no boundary crossing)") {
+        // Marker at tile 0, column 7 (source pixel 7). screen = 7 - fineX stays inside the first
+        // on-screen tile, so this isolates the fine-X mux without depending on the prefetch.
+        for (uint8 fineX = 0; fineX <= 7; ++fineX) {
+            CAPTURE(fineX);
+            const uint8 expectedX = static_cast<uint8>(7 - fineX);
+            CHECK_EQ(renderScrolledMarkerPixel(0, fineX, /*tile*/ 0, /*col*/ 7, expectedX), kBgMarkerColor);
+            if (expectedX > 0) {
+                CHECK_EQ(renderScrolledMarkerPixel(0, fineX, 0, 7, static_cast<uint8>(expectedX - 1)), kGlobalBackdropColor);
+            }
+        }
+    }
+
+    SUBCASE("fine X pulls the next tile's pixel into the first on-screen tile (prefetch)") {
+        // Source pixel 8 is column 0 of nametable tile 1. With coarseX = 0 it sits at screen
+        // x = 8 - fineX, so any fineX > 0 drags it left of the 8-pixel boundary -- a pixel that can
+        // only be drawn if tile 1 was fetched one tile ahead of the visible tile.
+        CHECK_EQ(renderScrolledMarkerPixel(0, 0, /*tile*/ 1, /*col*/ 0, 8), kBgMarkerColor); // baseline, no crossing
+        for (uint8 fineX = 1; fineX <= 7; ++fineX) {
+            CAPTURE(fineX);
+            const uint8 expectedX = static_cast<uint8>(8 - fineX);
+            CHECK_EQ(renderScrolledMarkerPixel(0, fineX, 1, 0, expectedX), kBgMarkerColor);
+            CHECK_EQ(renderScrolledMarkerPixel(0, fineX, 1, 0, static_cast<uint8>(expectedX + 1)), kGlobalBackdropColor);
+        }
+    }
+
+    SUBCASE("coarse X selects the first tile and fine X offsets within it") {
+        // coarseX = 5 makes nametable tile 5 the leftmost on-screen tile; fineX = 3 shifts 3 pixels
+        // into it. Source pixel 45 (tile 5, column 5) lands at screen x = 45 - (5*8 + 3) = 2.
+        CHECK_EQ(renderScrolledMarkerPixel(5, 3, /*tile*/ 5, /*col*/ 5, 2), kBgMarkerColor);
+        CHECK_EQ(renderScrolledMarkerPixel(5, 3, 5, 5, 3), kGlobalBackdropColor); // sharp: neighbor is blank
+    }
+
+    SUBCASE("with coarse + fine X, the tile after the first on-screen tile is prefetched") {
+        // Same scroll (coarseX = 5, fineX = 3). Tile 6 is the second on-screen tile; its column-0
+        // pixel (source 48) lands at screen x = 48 - (5*8 + 3) = 5, proving the tile past the first
+        // visible one is fetched ahead even under a non-zero coarse scroll.
+        CHECK_EQ(renderScrolledMarkerPixel(5, 3, /*tile*/ 6, /*col*/ 0, 5), kBgMarkerColor);
+        CHECK_EQ(renderScrolledMarkerPixel(5, 3, 6, 0, 6), kGlobalBackdropColor);
+    }
+
+    // --- Attribute (palette select) under fine X ---------------------------------------------
+    // Palette select alternates every two tiles (every 16 source pixels): source pixels 0-15 -> 1,
+    // 16-31 -> 2, 32-47 -> 1, 48-63 -> 2, ... A marker at source S reads kBgAttrMarkerA when its
+    // region select is 1 and kBgAttrMarkerB when it is 2. Fine X must carry each pixel's own select
+    // with it, exactly like the pattern bits, so the readback color reveals whether the attribute
+    // shifter stayed in lockstep.
+
+    SUBCASE("fine X keeps a pixel's palette select within its attribute region") {
+        // No boundary crossing: the shifted pixel stays inside one 16-pixel region, so its select
+        // must not change. Source 7 sits in the select-1 region; source 24 in the select-2 region.
+        for (uint8 fineX = 0; fineX <= 7; ++fineX) {
+            CAPTURE(fineX);
+            CHECK_EQ(renderScrolledAttributePixel(0, fineX, 0, 7, static_cast<uint8>(7 - fineX)), kBgAttrMarkerA);
+            CHECK_EQ(renderScrolledAttributePixel(0, fineX, 3, 0, static_cast<uint8>(24 - fineX)), kBgAttrMarkerB);
+        }
+    }
+
+    SUBCASE("fine X drags a pixel across an attribute-region boundary, carrying the new select") {
+        // Source 16 is the first pixel of the select-2 region. With coarseX = 0 it lands at screen
+        // x = 16 - fineX, so any fineX > 0 pulls it left of the boundary into screen columns the
+        // batched path draws from the select-1 tile -- yet it must still read back as select 2.
+        CHECK_EQ(renderScrolledAttributePixel(0, 0, /*tile*/ 2, /*col*/ 0, 16), kBgAttrMarkerB); // baseline, no crossing
+        for (uint8 fineX = 1; fineX <= 7; ++fineX) {
+            CAPTURE(fineX);
+            CHECK_EQ(renderScrolledAttributePixel(0, fineX, 2, 0, static_cast<uint8>(16 - fineX)), kBgAttrMarkerB);
+        }
+    }
+
+    SUBCASE("coarse + fine X: pixels straddling a region boundary keep their own selects") {
+        // coarseX = 5, fineX = 3. Sources 47 and 48 are adjacent but straddle the 48-pixel region
+        // boundary: 47 is select 1 (region 32-47), 48 is select 2 (region 48-63). They land at
+        // screen x = 47 - 43 = 4 and x = 48 - 43 = 5, and must retain their distinct selects.
+        CHECK_EQ(renderScrolledAttributePixel(5, 3, /*tile*/ 5, /*col*/ 7, 4), kBgAttrMarkerA);
+        CHECK_EQ(renderScrolledAttributePixel(5, 3, /*tile*/ 6, /*col*/ 0, 5), kBgAttrMarkerB);
     }
 }
 
@@ -1309,33 +1585,6 @@ TEST_CASE("NAMETABLES")
         CHECK_EQ(ppuBus.read(0x2000), 0x11); // top vs bottom are independent
         CHECK_EQ(ppuBus.read(0x2800), 0x22);
     }
-}
-
-// Writes one sprite (4 bytes) into primary OAM at the given sprite index via OAMADDR/OAMDATA.
-static void writeSprite(Ppu& ppu, const uint8 index, const uint8 y, const uint8 tile, const uint8 attr, const uint8 x)
-{
-    ppu.onCpuWrite(kOamAddr, static_cast<uint8>(index * 4));
-    ppu.onCpuWrite(kOamData, y);
-    ppu.onCpuWrite(kOamData, tile);
-    ppu.onCpuWrite(kOamData, attr);
-    ppu.onCpuWrite(kOamData, x);
-}
-
-// Parks every sprite off-screen (Y = $FF) so only sprites written afterward are in range.
-static void parkAllSprites(Ppu& ppu)
-{
-    ppu.onCpuWrite(kOamAddr, 0x00);
-    for (int i = 0; i < 256; ++i) {
-        ppu.onCpuWrite(kOamData, 0xFF);
-    }
-}
-
-// Runs the PPU until sprite evaluation for the given display scanline has completed.
-// Evaluation for line N runs at master cycle N*341 (the transition into line N), so any
-// target in (N*341, (N+1)*341] observes the result; N must be >= 1 in the first frame.
-static void evaluateForScanline(Ppu& ppu, const int scanline)
-{
-    ppu.executeUntil(static_cast<uint64>(scanline) * Ppu::kFrameScanlineWidth + 1);
 }
 
 TEST_CASE("Sprite evaluation (every scanline)")
